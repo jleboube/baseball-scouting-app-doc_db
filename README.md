@@ -39,7 +39,7 @@ mkpasswd -m sha-512 --stdin
 ### 2. Deploy
 ```bash
 chmod +x *.sh
-./deploy.sh
+./deploy-compose.sh
 ```
 
 ### 3. Configure Domain & SSL
@@ -67,17 +67,14 @@ docker-compose -f docker-compose.prod.yml ps
 # View logs
 docker-compose -f docker-compose.prod.yml logs app
 
-# Create backup
-./backup_database.sh
-
-# Restore backup
-./restore_database.sh backups/backup_file.sql.gz
-
-# Update application  
-./update.sh
-
 # Restart services
 docker-compose -f docker-compose.prod.yml restart
+
+# Stop services
+docker-compose -f docker-compose.prod.yml down
+
+# Update and redeploy
+./deploy-compose.sh
 ```
 
 ## 🔒 Security Features
@@ -93,10 +90,10 @@ docker-compose -f docker-compose.prod.yml restart
 
 - **Team Management**: Users only see their team's reports
 - **Complete Scouting Forms**: All 12U baseball evaluation criteria
+- **Spray Chart Upload**: Upload and display spray chart images
 - **Search & Filter**: Find reports by player, team, position
 - **Auto-save Drafts**: Never lose work
 - **Responsive Design**: Works on mobile, tablet, desktop
-- **Automated Backups**: Daily database backups
 - **Age Calculation**: Auto-calculates age from birth date
 
 ## 🗃️ Database Schema
@@ -129,11 +126,10 @@ docker-compose -f docker-compose.prod.yml exec db psql -U scout_user -d baseball
 ## 🔄 Updates
 
 ```bash
-git pull
-./update.sh
+./deploy-compose.sh
 ```
 
-Automatic backup is created before each update.
+This will update the application and run any necessary database migrations.
 
 ## 🆘 Troubleshooting
 
@@ -165,13 +161,12 @@ docker-compose -f docker-compose.prod.yml restart db
 ```
 baseball-scouting-app/
 ├── docker-compose.prod.yml    # Production setup
+├── docker-compose.yml         # Simple setup (no proxy)
 ├── .env                       # Your configuration
-├── deploy.sh                  # Simple deployment
-├── backup_database.sh         # Database backup
-├── restore_database.sh        # Database restore  
-├── update.sh                  # Application updates
+├── deploy-compose.sh          # Docker Compose deployment
 ├── server.js                  # Application server
 ├── init.sql                   # Database schema
+├── uploads/                   # Spray chart images
 └── public/                    # Web interface
 ```
 

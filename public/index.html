@@ -109,6 +109,31 @@
             </div>
         </div>
 
+        <!-- View/Edit Selection Modal -->
+        <div id="actionModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <h3>Select Action</h3>
+                <p>What would you like to do with this scouting report?</p>
+                <div class="modal-actions">
+                    <button id="viewReportBtn" class="btn btn-primary">View Report</button>
+                    <button id="editReportBtn" class="btn btn-secondary">Edit Report</button>
+                    <button id="cancelModalBtn" class="btn btn-danger">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report View (Read-only) -->
+        <div id="viewOnlyView" class="view">
+            <div class="form-header">
+                <button id="backFromViewBtn" class="btn btn-secondary">← Back to Reports</button>
+                <h2 id="viewTitle">Scouting Report</h2>
+                <div class="form-actions">
+                    <button id="editFromViewBtn" class="btn btn-primary">Edit Report</button>
+                </div>
+            </div>
+            <div id="reportDisplay" class="report-display"></div>
+        </div>
+
         <!-- Report Form View -->
         <div id="formView" class="view">
             <div class="form-header">

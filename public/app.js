@@ -47,6 +47,13 @@ class ScoutingApp {
         // Navigation
         document.getElementById('newReportBtn').addEventListener('click', () => this.showNewReportForm());
         document.getElementById('backBtn').addEventListener('click', () => this.showReportsView());
+        document.getElementById('backFromViewBtn').addEventListener('click', () => this.showReportsView());
+        
+        // Modal actions
+        document.getElementById('viewReportBtn').addEventListener('click', () => this.viewReport());
+        document.getElementById('editReportBtn').addEventListener('click', () => this.editReportFromModal());
+        document.getElementById('editFromViewBtn').addEventListener('click', () => this.editCurrentReport());
+        document.getElementById('cancelModalBtn').addEventListener('click', () => this.hideModal());
         
         // Form actions
         document.getElementById('saveBtn').addEventListener('click', () => this.saveReport());
@@ -445,7 +452,7 @@ class ScoutingApp {
         }
         
         reportsContainer.innerHTML = reportsToShow.map(report => `
-            <div class="report-card" onclick="app.editReport(${report.id})">
+            <div class="report-card" onclick="app.showActionModal(${report.id})">
                 <h3>${report.player_name || 'Unnamed Player'}</h3>
                 <div class="report-meta">
                     ${this.formatDate(report.scout_date)} • ${report.team || 'No Team'}
@@ -478,6 +485,7 @@ class ScoutingApp {
     showReportsView() {
         document.getElementById('reportsView').classList.add('active');
         document.getElementById('formView').classList.remove('active');
+        document.getElementById('viewOnlyView').classList.remove('active');
         this.loadReports();
     }
 
@@ -489,8 +497,33 @@ class ScoutingApp {
         this.showFormView();
     }
 
+    showActionModal(reportId) {
+        this.selectedReportId = reportId;
+        document.getElementById('actionModal').style.display = 'flex';
+    }
+    
+    hideModal() {
+        document.getElementById('actionModal').style.display = 'none';
+        this.selectedReportId = null;
+    }
+    
+    async viewReport() {
+        this.hideModal();
+        await this.loadAndDisplayReport(this.selectedReportId, true);
+    }
+    
+    async editReportFromModal() {
+        this.hideModal();
+        await this.loadAndDisplayReport(this.selectedReportId, false);
+    }
+    
+    editCurrentReport() {
+        this.showFormView();
+    }
+
     showFormView() {
         document.getElementById('reportsView').classList.remove('active');
+        document.getElementById('viewOnlyView').classList.remove('active');
         document.getElementById('formView').classList.add('active');
         
         // Focus on player name field
@@ -498,12 +531,16 @@ class ScoutingApp {
             document.getElementById('player_name').focus();
         }, 100);
     }
+    
+    showViewOnlyView() {
+        document.getElementById('reportsView').classList.remove('active');
+        document.getElementById('formView').classList.remove('active');
+        document.getElementById('viewOnlyView').classList.add('active');
+    }
 
-    async editReport(reportId) {
+    async loadAndDisplayReport(reportId, viewOnly = false) {
         try {
             this.currentReportId = reportId;
-            document.getElementById('formTitle').textContent = 'Edit Scouting Report';
-            document.getElementById('deleteBtn').style.display = 'inline-block';
             
             const response = await fetch(`/api/reports/${reportId}`, {
                 credentials: 'include'
@@ -515,19 +552,75 @@ class ScoutingApp {
                     return;
                 }
                 if (response.status === 403) {
-                    this.showError('You do not have permission to edit this report.');
+                    this.showError('You do not have permission to access this report.');
                     return;
                 }
                 throw new Error('Failed to load report');
             }
             
             const report = await response.json();
-            this.populateForm(report);
-            this.showFormView();
+            
+            if (viewOnly) {
+                this.displayReport(report);
+                this.showViewOnlyView();
+            } else {
+                document.getElementById('formTitle').textContent = 'Edit Scouting Report';
+                document.getElementById('deleteBtn').style.display = 'inline-block';
+                this.populateForm(report);
+                this.showFormView();
+            }
         } catch (error) {
             this.showError('Failed to load report: ' + error.message);
             console.error('Error loading report:', error);
         }
+    }
+    
+    displayReport(report) {
+        document.getElementById('viewTitle').textContent = `Scouting Report - ${report.player_name || 'Unnamed Player'}`;
+        
+        const display = document.getElementById('reportDisplay');
+        display.innerHTML = `
+            <div class="report-section">
+                <h3>Player Information</h3>
+                <div class="report-grid">
+                    <div><strong>Name:</strong> ${report.player_name || 'N/A'}</div>
+                    <div><strong>Position:</strong> ${report.primary_position || 'N/A'}</div>
+                    <div><strong>Team:</strong> ${report.team || 'N/A'}</div>
+                    <div><strong>Age:</strong> ${report.age || 'N/A'}</div>
+                    <div><strong>Height:</strong> ${report.height || 'N/A'}</div>
+                    <div><strong>Weight:</strong> ${report.weight || 'N/A'}</div>
+                    <div><strong>Bats:</strong> ${report.bats || 'N/A'}</div>
+                    <div><strong>Throws:</strong> ${report.throws || 'N/A'}</div>
+                </div>
+            </div>
+            
+            ${report.spray_chart_image ? `
+                <div class="report-section">
+                    <h3>Spray Chart</h3>
+                    <img src="/uploads/${report.spray_chart_image}" alt="Spray Chart" style="max-width: 400px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+            ` : ''}
+            
+            <div class="report-section">
+                <h3>Strengths</h3>
+                <p>${report.biggest_strengths || 'None specified'}</p>
+            </div>
+            
+            <div class="report-section">
+                <h3>Areas for Improvement</h3>
+                <p>${report.improvement_areas || 'None specified'}</p>
+            </div>
+            
+            <div class="report-section">
+                <h3>Recommended Focus</h3>
+                <p>${report.recommended_focus || 'None specified'}</p>
+            </div>
+            
+            <div class="report-section">
+                <h3>Notes & Observations</h3>
+                <p>${report.notes_observations || 'None specified'}</p>
+            </div>
+        `;
     }
 
     populateForm(report) {
