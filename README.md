@@ -10,6 +10,32 @@ cp .env.production .env
 nano .env  # Update passwords and domain
 ```
 
+Create passwords for .env file.
+
+#### 1A. Create hashed passwords to insert into .env file.
+
+#### OpenSSL
+```
+# With a random random salt
+openssl passwd -6 '<password>'
+# Choosing both password and salt
+openssl passwd -6 --salt '<salt>' '<password>'
+# Read password from stdin to avoid leaking it in shell command history
+openssl passwd -6 -stdin
+openssl passwd -6
+```
+#### mkpasswd
+```
+# With a random password and random salt
+mkpasswd -m sha-512
+# With a random random salt
+mkpasswd -m sha-512 '<password>'
+# Choosing both password and salt
+mkpasswd -m sha-512 '<password>' '<salt>'
+# Read password from stdin to avoid leaking it in shell command history
+mkpasswd -m sha-512 --stdin
+```
+
 ### 2. Deploy
 ```bash
 chmod +x *.sh
