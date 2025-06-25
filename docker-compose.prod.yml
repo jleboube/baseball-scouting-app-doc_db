@@ -1,0 +1,65 @@
+
+services:
+  # Nginx Proxy Manager - Web UI for proxy and SSL management
+  nginx-proxy-manager:
+    image: 'jc21/nginx-proxy-manager:latest'
+    restart: unless-stopped
+    ports:
+      - '80:80'      # HTTP
+      - '443:443'    # HTTPS
+      - '81:81'      # Admin Web Port
+    volumes:
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
+    environment:
+      DISABLE_IPV6: 'true'
+    networks:
+      - proxy-network
+
+  # Baseball Scouting Application
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=baseball_scouting
+      - DB_USER=scout_user
+      - DB_PASSWORD=${DB_PASSWORD:-scout_pass}
+      - NODE_ENV=production
+      - SESSION_SECRET=${SESSION_SECRET:-change-this-in-production}
+      - DOMAIN=${DOMAIN:-scouting-report.com}
+    depends_on:
+      - db
+    networks:
+      - proxy-network
+      - app-network
+    # Note: No ports exposed - accessed through nginx-proxy-manager
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=baseball_scouting
+      - POSTGRES_USER=scout_user
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-scout_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - app-network
+    # Database not exposed to internet
+
+volumes:
+  postgres_data:
+  npm_data:
+  npm_letsencrypt:
+
+networks:
+  proxy-network:
+    driver: bridge
+  app-network:
+    driver: bridge
+    internal: true  # Database network isolated from internet

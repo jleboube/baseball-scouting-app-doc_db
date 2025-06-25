@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baseball Scouting Reports</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Authentication Views -->
+        <div id="authView" class="auth-view active">
+            <div class="auth-container">
+                <div class="auth-header">
+                    <h1>⚾ Baseball Scouting Reports</h1>
+                    <p>Team-based scouting and player evaluation system</p>
+                </div>
+
+                <!-- Login Form -->
+                <div id="loginForm" class="auth-form active">
+                    <h2>Login to Your Team</h2>
+                    <form id="loginFormElement">
+                        <div class="form-group">
+                            <label for="loginEmail">Email</label>
+                            <input type="email" id="loginEmail" name="email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="loginPassword">Password</label>
+                            <input type="password" id="loginPassword" name="password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-full">Login</button>
+                    </form>
+                    <p class="auth-switch">
+                        Don't have an account? 
+                        <a href="#" id="showRegister">Register here</a>
+                    </p>
+                    <div class="demo-info">
+                        <strong>Demo Account:</strong><br>
+                        Email: admin@demo.com<br>
+                        Password: admin123
+                    </div>
+                </div>
+
+                <!-- Registration Form -->
+                <div id="registerForm" class="auth-form">
+                    <h2>Register New Account</h2>
+                    <form id="registerFormElement">
+                        <div class="form-group">
+                            <label for="registerFirstName">First Name</label>
+                            <input type="text" id="registerFirstName" name="firstName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerLastName">Last Name</label>
+                            <input type="text" id="registerLastName" name="lastName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerEmail">Email</label>
+                            <input type="email" id="registerEmail" name="email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerPassword">Password</label>
+                            <input type="password" id="registerPassword" name="password" required minlength="6">
+                            <small>Minimum 6 characters</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerGroup">Team/Group</label>
+                            <select id="registerGroup" name="groupId" required>
+                                <option value="">Select your team...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="registrationCode">Team Registration Code</label>
+                            <input type="text" id="registrationCode" name="registrationCode" required placeholder="Enter your team code">
+                            <small>Contact your team administrator for the registration code</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-full">Register</button>
+                    </form>
+                    <p class="auth-switch">
+                        Already have an account? 
+                        <a href="#" id="showLogin">Login here</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Application (hidden until authenticated) -->
+        <div id="mainApp" class="main-app">
+            <header>
+                <div class="header-content">
+                    <div class="header-left">
+                        <h1>⚾ Baseball Scouting Reports</h1>
+                        <span id="teamName" class="team-name"></span>
+                    </div>
+                    <div class="header-right">
+                        <span id="userInfo" class="user-info"></span>
+                        <button id="newReportBtn" class="btn btn-primary">+ New Report</button>
+                        <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+                    </div>
+                </div>
+            </header>
+
+        <!-- Reports List View -->
+        <div id="reportsView" class="view active">
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Search players..." />
+            </div>
+            <div id="reportsList" class="reports-grid">
+                <!-- Reports will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Report Form View -->
+        <div id="formView" class="view">
+            <div class="form-header">
+                <button id="backBtn" class="btn btn-secondary">← Back to Reports</button>
+                <h2 id="formTitle">New Scouting Report</h2>
+                <div class="form-actions">
+                    <button id="saveBtn" class="btn btn-primary">Save Report</button>
+                    <button id="deleteBtn" class="btn btn-danger" style="display: none;">Delete</button>
+                </div>
+            </div>
+
+            <form id="scoutingForm" class="scouting-form">
+                <!-- Scout Information -->
+                <div class="form-section">
+                    <h3>Scout Information</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="scout_name">Scout/Coach</label>
+                            <input type="text" id="scout_name" name="scout_name">
+                        </div>
+                        <div class="form-group">
+                            <label for="scout_date">Date</label>
+                            <input type="date" id="scout_date" name="scout_date">
+                        </div>
+                        <div class="form-group">
+                            <label for="event">Event</label>
+                            <input type="text" id="event" name="event">
+                        </div>
+                        <div class="form-group">
+                            <label for="league_organization">League/Organization</label>
+                            <input type="text" id="league_organization" name="league_organization">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Player Information -->
+                <div class="form-section">
+                    <h3>Player Information</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="player_name">Name *</label>
+                            <input type="text" id="player_name" name="player_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="primary_position">Primary Position</label>
+                            <input type="text" id="primary_position" name="primary_position">
+                        </div>
+                        <div class="form-group">
+                            <label for="jersey_number">Jersey #</label>
+                            <input type="text" id="jersey_number" name="jersey_number">
+                        </div>
+                        <div class="form-group">
+                            <label for="date_of_birth">Date of Birth</label>
+                            <input type="date" id="date_of_birth" name="date_of_birth">
+                        </div>
+                        <div class="form-group">
+                            <label for="age">Age</label>
+                            <input type="number" id="age" name="age" min="1" max="18">
+                        </div>
+                        <div class="form-group">
+                            <label for="height">Height</label>
+                            <input type="text" id="height" name="height" placeholder="5'6&quot;">
+                        </div>
+                        <div class="form-group">
+                            <label for="weight">Weight</label>
+                            <input type="text" id="weight" name="weight" placeholder="120 lbs">
+                        </div>
+                        <div class="form-group">
+                            <label for="bats">Bats</label>
+                            <select id="bats" name="bats">
+                                <option value="">Select...</option>
+                                <option value="L">Left</option>
+                                <option value="R">Right</option>
+                                <option value="S">Switch</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="throws">Throws</label>
+                            <select id="throws" name="throws">
+                                <option value="">Select...</option>
+                                <option value="L">Left</option>
+                                <option value="R">Right</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="team">Team</label>
+                            <input type="text" id="team" name="team">
+                        </div>
+                        <div class="form-group">
+                            <label for="parent_guardian">Parent/Guardian</label>
+                            <input type="text" id="parent_guardian" name="parent_guardian">
+                        </div>
+                        <div class="form-group">
+                            <label for="contact">Contact</label>
+                            <input type="text" id="contact" name="contact">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Physical Development -->
+                <div class="form-section">
+                    <h3>Physical Development</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="build">Build</label>
+                            <select id="build" name="build">
+                                <option value="">Select...</option>
+                                <option value="Small">Small for Age</option>
+                                <option value="Average">Average</option>
+                                <option value="Large">Large for Age</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="coordination">Coordination</label>
+                            <select id="coordination" name="coordination">
+                                <option value="">Select...</option>
+                                <option value="Developing">Developing</option>
+                                <option value="Good">Good</option>
+                                <option value="Advanced">Advanced</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="athleticism">Athleticism</label>
+                            <select id="athleticism" name="athleticism">
+                                <option value="">Select...</option>
+                                <option value="Below Average">Below Average</option>
+                                <option value="Average">Average</option>
+                                <option value="Above Average">Above Average</option>
+                                <option value="Exceptional">Exceptional</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="motor_skills">Motor Skills</label>
+                            <select id="motor_skills" name="motor_skills">
+                                <option value="">Select...</option>
+                                <option value="Developing">Developing</option>
+                                <option value="Age Appropriate">Age Appropriate</option>
+                                <option value="Advanced">Advanced</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="growth_projection">Growth Projection</label>
+                            <select id="growth_projection" name="growth_projection">
+                                <option value="">Select...</option>
+                                <option value="Early Developer">Early Developer</option>
+                                <option value="On Track">On Track</option>
+                                <option value="Late Bloomer">Late Bloomer</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hitting Fundamentals -->
+                <div class="form-section">
+                    <h3>Hitting Fundamentals</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="stance_setup">Stance & Setup</label>
+                            <select id="stance_setup" name="stance_setup">
+                                <option value="">Select...</option>
+                                <option value="Needs Work">Needs Work</option>
+                                <option value="Developing">Developing</option>
+                                <option value="Good">Good</option>
+                                <option value="Advanced">Advanced</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="swing_mechanics">Swing Mechanics</label>
+                            <select id="swing_mechanics" name="swing_mechanics">
+                                <option value="">Select...</option>
+                                <option value="Needs Work">Needs Work</option>
+                                <option value="Developing">Developing</option>
+                                <option value="Solid">Solid</option>
+                                <option value="Very Good">Very Good</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="contact_ability">Contact Ability</label>
+                            <select id="contact_ability" name="contact_ability">
+                                <option value="">Select...</option>
+                                <option value="Struggles">Struggles</option>
+                                <option value="Inconsistent">Inconsistent</option>
+                                <option value="Consistent">Consistent</option>
+                                <option value="Excellent">Excellent</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="power_potential">Power Potential</label>
+                            <select id="power_potential" name="power_potential">
+                                <option value="">Select...</option>
+                                <option value="Limited">Limited</option>
+                                <option value="Some">Some</option>
+                                <option value="Good">Good</option>
+                                <option value="Strong for Age">Strong for Age</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="plate_discipline">Plate Discipline</label>
+                            <select id="plate_discipline" name="plate_discipline">
+                                <option value="">Select...</option>
+                                <option value="Swings at Everything">Swings at Everything</option>
+                                <option value="Learning">Learning</option>
+                                <option value="Selective">Selective</option>
+                                <option value="Patient">Patient</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bat_speed">Bat Speed</label>
+                            <select id="bat_speed" name="bat_speed">
+                                <option value="">Select...</option>
+                                <option value="Slow">Slow</option>
+                                <option value="Average">Average</option>
+                                <option value="Good">Good</option>
+                                <option value="Fast for Age">Fast for Age</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="approach">Approach</label>
+                            <select id="approach" name="approach">
+                                <option value="">Select...</option>
+                                <option value="Afraid to Swing">Afraid to Swing</option>
+                                <option value="Aggressive">Aggressive</option>
+                                <option value="Balanced">Balanced</option>
+                                <option value="Smart">Smart</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bunting">Bunting</label>
+                            <select id="bunting" name="bunting">
+                                <option value="">Select...</option>
+                                <option value="Cannot">Cannot</option>
+                                <option value="Learning">Learning</option>
+                                <option value="Adequate">Adequate</option>
+                                <option value="Good">Good</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Running & Base Running -->
+                <div class="form-section">
+                    <h3>Running & Base Running</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="speed">Speed</label>
+                            <select id="speed" name="speed">
+                                <option value="">Select...</option>
+                                <option value="Slow">Slow</option>
+                                <option value="Average">Average</option>
+                                <option value="Fast">Fast</option>
+                                <option value="Very Fast for Age">Very Fast for Age</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="base_running_iq">Base Running IQ</label>
+                            <select id="base_running_iq" name="base_running_iq">
+                                <option value="">Select...</option>
+                                <option value="Needs Teaching">Needs Teaching</option>
+                                <option value="Learning">Learning</option>
+                                <option value="Good">Good</option>
+                                <option value="Advanced">Advanced</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="stealing_ability">Stealing Ability</label>
+                            <select id="stealing_ability" name="stealing_ability">
+                                <option value="">Select...</option>
+                                <option value="No Threat">No Threat</option>
+                                <option value="Occasional">Occasional</option>
+                                <option value="Threat">Threat</option>
+                                <option value="Consistent">Consistent</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="first_step">First Step</label>
+                            <select id="first_step" name="first_step">
+                                <option value="">Select...</option>
+                                <option value="Slow">Slow</option>
+                                <option value="Average">Average</option>
+                                <option value="Quick">Quick</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="turns">Turns</label>
+                            <select id="turns" name="turns">
+                                <option value="">Select...</option>
+                                <option value="Poor">Poor</option>
+                                <option value="OK">OK</option>
+                                <option value="Good">Good</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fielding Skills -->
+                <div class="form-section">
+                    <h3>Fielding Skills</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="fielding_readiness">Readiness</label>
+                            <select id="fielding_readiness" name="fielding_readiness">
+                                <option value="">Select...</option>
+                                <option value="Not Ready">Not Ready</option>
+                                <option value="Learning">Learning</option>
+                                <option value="Ready">Ready</option>
+                                <option value="Advanced">Advanced</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="glove_work">Glove Work</label>
+                            <select id="glove_work" name="glove_work">
+                                <option value="">Select...</option>
+                                <option value="Struggles">Struggles</option>
+                                <option value="Developing">Developing</option>
+                                <option value="Reliable">Reliable</option>
+                                <option value="Soft Hands">Soft Hands</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="footwork">Footwork</label>
+                            <select id="footwork" name="footwork">
+                                <option value="">Select...</option>
+                                <option value="Needs Work">Needs Work</option>
+                                <option value="Learning">Learning</option>
+                                <option value="Good">Good</option>
+                                <option value="Excellent">Excellent</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="arm_strength">Arm Strength</label>
+                            <select id="arm_strength" name="arm_strength">
+                                <option value="">Select...</option>
+                                <option value="Weak">Weak</option>
+                                <option value="Average">Average</option>
+                                <option value="Strong">Strong</option>
+                                <option value="Very Strong for Age">Very Strong for Age</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="arm_accuracy">Arm Accuracy</label>
+                            <select id="arm_accuracy" name="arm_accuracy">
+                                <option value="">Select...</option>
+                                <option value="Wild">Wild</option>
+                                <option value="Inconsistent">Inconsistent</option>
+                                <option value="Accurate">Accurate</option>
+                                <option value="Precise">Precise</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="range_field">Range</label>
+                            <select id="range_field" name="range_field">
+                                <option value="">Select...</option>
+                                <option value="Limited">Limited</option>
+                                <option value="Average">Average</option>
+                                <option value="Good">Good</option>
+                                <option value="Exceptional">Exceptional</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="game_awareness">Game Awareness</label>
+                            <select id="game_awareness" name="game_awareness">
+                                <option value="">Select...</option>
+                                <option value="Lost">Lost</option>
+                                <option value="Learning">Learning</option>
+                                <option value="Aware">Aware</option>
+                                <option value="Instinctive">Instinctive</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="positions_played">Positions Played</label>
+                            <input type="text" id="positions_played" name="positions_played" placeholder="List all positions">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pitching -->
+                <div class="form-section">
+                    <h3>Pitching (If Applicable)</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="fastball_mph">Fastball MPH</label>
+                            <input type="text" id="fastball_mph" name="fastball_mph" placeholder="e.g., 45-50">
+                        </div>
+                        <div class="form-group">
+                            <label for="control_pitching">Control</label>
+                            <select id="control_pitching" name="control_pitching">
+                                <option value="">Select...</option>
+                                <option value="Wild">Wild</option>
+                                <option value="Fair">Fair</option>
+                                <option value="Good">Good</option>
+                                <option value="Excellent">Excellent</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="breaking_ball">Breaking Ball</label>
+                            <select id="breaking_ball" name="breaking_ball">
+                                <option value="">Select...</option>
+                                <option value="None">None</option>
+                                <option value="Learning">Learning</option>
+                                <option value="Developing">Developing</option>
+                                <option value="Good">Good</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="changeup">Changeup</label>
+                            <select id="changeup" name="changeup">
+                                <option value="">Select...</option>
+                                <option value="None">None</option>
+                                <option value="Attempted">Attempted</option>
+                                <option value="Developing">Developing</option>
+                                <option value="Effective">Effective</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="delivery">Delivery</label>
+                            <select id="delivery" name="delivery">
+                                <option value="">Select...</option>
+                                <option value="Needs Work">Needs Work</option>
+                                <option value="Developing">Developing</option>
+                                <option value="Smooth">Smooth</option>
+                                <option value="Advanced">Advanced</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="mound_presence">Mound Presence</label>
+                            <select id="mound_presence" name="mound_presence">
+                                <option value="">Select...</option>
+                                <option value="Nervous">Nervous</option>
+                                <option value="OK">OK</option>
+                                <option value="Confident">Confident</option>
+                                <option value="Composed">Composed</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="strikes">Strikes</label>
+                            <select id="strikes" name="strikes">
+                                <option value="">Select...</option>
+                                <option value="Struggles">Struggles</option>
+                                <option value="Inconsistent">Inconsistent</option>
+                                <option value="Usually">Usually</option>
+                                <option value="Commands Zone">Commands Zone</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Baseball IQ & Intangibles -->
+                <div class="form-section">
+                    <h3>Baseball IQ & Intangibles</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="game_understanding">Game Understanding</label>
+                            <select id="game_understanding" name="game_understanding">
+                                <option value="">Select...</option>
+                                <option value="Limited">Limited</option>
+                                <option value="Learning">Learning</option>
+                                <option value="Good">Good</option>
+                                <option value="Advanced">Advanced</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="coachability">Coachability</label>
+                            <select id="coachability" name="coachability">
+                                <option value="">Select...</option>
+                                <option value="Resistant">Resistant</option>
+                                <option value="OK">OK</option>
+                                <option value="Good">Good</option>
+                                <option value="Eager to Learn">Eager to Learn</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="effort_level">Effort Level</label>
+                            <select id="effort_level" name="effort_level">
+                                <option value="">Select...</option>
+                                <option value="Lacks">Lacks</option>
+                                <option value="Inconsistent">Inconsistent</option>
+                                <option value="Good">Good</option>
+                                <option value="Maximum">Maximum</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="competitiveness">Competitiveness</label>
+                            <select id="competitiveness" name="competitiveness">
+                                <option value="">Select...</option>
+                                <option value="Quits">Quits</option>
+                                <option value="Tries">Tries</option>
+                                <option value="Competitive">Competitive</option>
+                                <option value="Fierce">Fierce</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="teamwork">Teamwork</label>
+                            <select id="teamwork" name="teamwork">
+                                <option value="">Select...</option>
+                                <option value="Selfish">Selfish</option>
+                                <option value="OK">OK</option>
+                                <option value="Good">Good</option>
+                                <option value="Team First">Team First</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="focus_attention">Focus/Attention</label>
+                            <select id="focus_attention" name="focus_attention">
+                                <option value="">Select...</option>
+                                <option value="Distracted">Distracted</option>
+                                <option value="Fair">Fair</option>
+                                <option value="Good">Good</option>
+                                <option value="Locked In">Locked In</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="leadership">Leadership</label>
+                            <select id="leadership" name="leadership">
+                                <option value="">Select...</option>
+                                <option value="None">None</option>
+                                <option value="Quiet">Quiet</option>
+                                <option value="Vocal">Vocal</option>
+                                <option value="Natural Leader">Natural Leader</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Development Areas -->
+                <div class="form-section">
+                    <h3>Development Areas</h3>
+                    <div class="form-group">
+                        <label for="biggest_strengths">Biggest Strengths</label>
+                        <textarea id="biggest_strengths" name="biggest_strengths" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="improvement_areas">Primary Areas for Improvement</label>
+                        <textarea id="improvement_areas" name="improvement_areas" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="recommended_focus">Recommended Focus Areas</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" name="focus_hitting" value="Hitting Mechanics"> Hitting Mechanics</label>
+                            <label><input type="checkbox" name="focus_fielding" value="Fielding Fundamentals"> Fielding Fundamentals</label>
+                            <label><input type="checkbox" name="focus_throwing" value="Throwing Accuracy"> Throwing Accuracy</label>
+                            <label><input type="checkbox" name="focus_baserunning" value="Base Running"> Base Running</label>
+                            <label><input type="checkbox" name="focus_situations" value="Game Situations"> Game Situations</label>
+                            <label><input type="checkbox" name="focus_physical" value="Physical Development"> Physical Development</label>
+                            <label><input type="checkbox" name="focus_mental" value="Mental Approach"> Mental Approach</label>
+                            <label><input type="checkbox" name="focus_position" value="Position Specific Skills"> Position Specific Skills</label>
+                        </div>
+                        <input type="hidden" id="recommended_focus" name="recommended_focus">
+                    </div>
+                </div>
+
+                <!-- Projection & Recommendations -->
+                <div class="form-section">
+                    <h3>Projection & Recommendations</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="current_level">Current Level</label>
+                            <select id="current_level" name="current_level">
+                                <option value="">Select...</option>
+                                <option value="Recreational">Recreational</option>
+                                <option value="Competitive">Competitive</option>
+                                <option value="Select">Select</option>
+                                <option value="Elite for Age">Elite for Age</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="development_potential">Development Potential</label>
+                            <select id="development_potential" name="development_potential">
+                                <option value="">Select...</option>
+                                <option value="Limited">Limited</option>
+                                <option value="Moderate">Moderate</option>
+                                <option value="Good">Good</option>
+                                <option value="High">High</option>
+                                <option value="Exceptional">Exceptional</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="playing_time_recommendation">Playing Time Recommendation</label>
+                            <select id="playing_time_recommendation" name="playing_time_recommendation">
+                                <option value="">Select...</option>
+                                <option value="Limited">Limited</option>
+                                <option value="Rotational">Rotational</option>
+                                <option value="Regular">Regular</option>
+                                <option value="Key Player">Key Player</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="recommended_next_steps">Recommended Next Steps</label>
+                        <textarea id="recommended_next_steps" name="recommended_next_steps" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="position_projection">Position Projection</label>
+                        <textarea id="position_projection" name="position_projection" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="additional_training">Additional Training Needed</label>
+                        <textarea id="additional_training" name="additional_training" rows="3"></textarea>
+                    </div>
+                </div>
+
+                <!-- Coach/Parent Feedback -->
+                <div class="form-section">
+                    <h3>Coach/Parent Feedback</h3>
+                    <div class="form-group">
+                        <label for="work_at_home">What to Work on at Home/Practice</label>
+                        <textarea id="work_at_home" name="work_at_home" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="positive_reinforcement">Positive Reinforcement Areas</label>
+                        <textarea id="positive_reinforcement" name="positive_reinforcement" rows="3"></textarea>
+                    </div>
+                </div>
+
+                <!-- Notes & Observations -->
+                <div class="form-section">
+                    <h3>Notes & Observations</h3>
+                    <div class="form-group">
+                        <label for="notes_observations">Notes & Observations</label>
+                        <textarea id="notes_observations" name="notes_observations" rows="4"></textarea>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="next_evaluation_date">Next Evaluation Date</label>
+                            <input type="date" id="next_evaluation_date" name="next_evaluation_date">
+                        </div>
+                        <div class="form-group">
+                            <label for="followup_items">Follow-up Items</label>
+                            <input type="text" id="followup_items" name="followup_items">
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
