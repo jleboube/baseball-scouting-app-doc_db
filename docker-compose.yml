@@ -1,0 +1,44 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=baseball_scouting
+      - DB_USER=scout_user
+      - DB_PASSWORD=${DB_PASSWORD:-scout_pass}
+      - NODE_ENV=production
+      - SESSION_SECRET=${SESSION_SECRET:-change-this-in-production}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=baseball_scouting
+      - POSTGRES_USER=scout_user
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-scout_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scout_user -d baseball_scouting"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
