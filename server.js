@@ -6,6 +6,8 @@ const bcrypt = require('bcrypt');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -58,6 +60,38 @@ app.use(session({
 }));
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadsDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'spray-chart-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    },
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'));
+        }
+    }
+});
 
 // Define all database columns for scouting reports
 const DB_FIELDS = [
@@ -77,7 +111,7 @@ const DB_FIELDS = [
     'recommended_focus', 'current_level', 'development_potential', 
     'recommended_next_steps', 'playing_time_recommendation', 'position_projection',
     'additional_training', 'work_at_home', 'positive_reinforcement',
-    'notes_observations', 'next_evaluation_date', 'followup_items'
+    'notes_observations', 'next_evaluation_date', 'followup_items', 'spray_chart_image'
 ];
 
 // Authentication middleware
@@ -417,18 +451,136 @@ app.put('/api/reports/:id', requireAuth, async (req, res) => {
     }
 });
 
+// Upload spray chart image
+app.post('/api/reports/:id/spray-chart', requireAuth, upload.single('sprayChart'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        
+        const reportId = req.params.id;
+        const imagePath = req.file.filename;
+        
+        // Check if report exists and user has access
+        const checkQuery = `
+            SELECT spray_chart_image FROM scouting_reports 
+            WHERE id = $1 AND (group_id = $2 OR group_id IS NULL)
+        `;
+        
+        const checkResult = await pool.query(checkQuery, [reportId, req.session.groupId]);
+        if (checkResult.rows.length === 0) {
+            // Delete uploaded file if report not found
+            fs.unlinkSync(req.file.path);
+            return res.status(404).json({ error: 'Report not found or access denied' });
+        }
+        
+        // Delete old image if exists
+        const oldImage = checkResult.rows[0].spray_chart_image;
+        if (oldImage) {
+            const oldImagePath = path.join(uploadsDir, oldImage);
+            if (fs.existsSync(oldImagePath)) {
+                fs.unlinkSync(oldImagePath);
+            }
+        }
+        
+        // Update database with new image path
+        const updateQuery = `
+            UPDATE scouting_reports 
+            SET spray_chart_image = $1, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = $2
+        `;
+        
+        await pool.query(updateQuery, [imagePath, reportId]);
+        
+        res.json({ 
+            message: 'Spray chart uploaded successfully',
+            imagePath: `/uploads/${imagePath}`
+        });
+        
+    } catch (err) {
+        console.error('Upload error:', err);
+        if (req.file) {
+            fs.unlinkSync(req.file.path);
+        }
+        res.status(500).json({ error: 'Failed to upload image' });
+    }
+});
+
+// Delete spray chart image
+app.delete('/api/reports/:id/spray-chart', requireAuth, async (req, res) => {
+    try {
+        const reportId = req.params.id;
+        
+        // Get current image path
+        const query = `
+            SELECT spray_chart_image FROM scouting_reports 
+            WHERE id = $1 AND (group_id = $2 OR group_id IS NULL)
+        `;
+        
+        const result = await pool.query(query, [reportId, req.session.groupId]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Report not found or access denied' });
+        }
+        
+        const imagePath = result.rows[0].spray_chart_image;
+        if (!imagePath) {
+            return res.status(404).json({ error: 'No spray chart image found' });
+        }
+        
+        // Delete file from filesystem
+        const fullImagePath = path.join(uploadsDir, imagePath);
+        if (fs.existsSync(fullImagePath)) {
+            fs.unlinkSync(fullImagePath);
+        }
+        
+        // Update database
+        const updateQuery = `
+            UPDATE scouting_reports 
+            SET spray_chart_image = NULL, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = $1
+        `;
+        
+        await pool.query(updateQuery, [reportId]);
+        
+        res.json({ message: 'Spray chart deleted successfully' });
+        
+    } catch (err) {
+        console.error('Delete image error:', err);
+        res.status(500).json({ error: 'Failed to delete image' });
+    }
+});
+
 // Delete scouting report (must be in same group)
 app.delete('/api/reports/:id', requireAuth, async (req, res) => {
     try {
-        const query = `
+        // Get spray chart image path before deleting
+        const imageQuery = `
+            SELECT spray_chart_image FROM scouting_reports 
+            WHERE id = $1 AND (group_id = $2 OR group_id IS NULL)
+        `;
+        
+        const imageResult = await pool.query(imageQuery, [req.params.id, req.session.groupId]);
+        
+        if (imageResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Report not found or access denied' });
+        }
+        
+        const imagePath = imageResult.rows[0].spray_chart_image;
+        
+        // Delete the report
+        const deleteQuery = `
             DELETE FROM scouting_reports 
             WHERE id = $1 AND (group_id = $2 OR group_id IS NULL)
         `;
         
-        const result = await pool.query(query, [req.params.id, req.session.groupId]);
+        const result = await pool.query(deleteQuery, [req.params.id, req.session.groupId]);
         
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: 'Report not found or access denied' });
+        // Delete associated image file if exists
+        if (imagePath) {
+            const fullImagePath = path.join(uploadsDir, imagePath);
+            if (fs.existsSync(fullImagePath)) {
+                fs.unlinkSync(fullImagePath);
+            }
         }
         
         res.json({ message: 'Report deleted successfully' });

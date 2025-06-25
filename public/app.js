@@ -67,6 +67,9 @@ class ScoutingApp {
         // Handle checkbox groups for recommended focus
         this.handleCheckboxGroup();
         
+        // Handle spray chart upload
+        this.bindSprayChartEvents();
+        
         // Set default date to today
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('scout_date').value = today;
@@ -248,6 +251,116 @@ class ScoutingApp {
                 this.updateRecommendedFocus();
             });
         });
+    }
+
+    bindSprayChartEvents() {
+        const fileInput = document.getElementById('sprayChartUpload');
+        const uploadBtn = document.getElementById('uploadSprayChart');
+        const deleteBtn = document.getElementById('deleteSprayChart');
+        
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                uploadBtn.style.display = 'inline-block';
+            } else {
+                uploadBtn.style.display = 'none';
+            }
+        });
+        
+        uploadBtn.addEventListener('click', () => this.uploadSprayChart());
+        deleteBtn.addEventListener('click', () => this.deleteSprayChart());
+    }
+
+    async uploadSprayChart() {
+        if (!this.currentReportId) {
+            this.showError('Please save the report first before uploading images');
+            return;
+        }
+        
+        const fileInput = document.getElementById('sprayChartUpload');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            this.showError('Please select an image file');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('sprayChart', file);
+        
+        try {
+            document.getElementById('uploadSprayChart').textContent = 'Uploading...';
+            document.getElementById('uploadSprayChart').disabled = true;
+            
+            const response = await fetch(`/api/reports/${this.currentReportId}/spray-chart`, {
+                method: 'POST',
+                credentials: 'include',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error('Upload failed');
+            }
+            
+            const result = await response.json();
+            this.showSuccess('Spray chart uploaded successfully!');
+            this.displaySprayChart(result.imagePath);
+            
+            // Reset file input
+            fileInput.value = '';
+            document.getElementById('uploadSprayChart').style.display = 'none';
+            
+        } catch (error) {
+            this.showError('Failed to upload spray chart: ' + error.message);
+        } finally {
+            document.getElementById('uploadSprayChart').textContent = 'Upload Image';
+            document.getElementById('uploadSprayChart').disabled = false;
+        }
+    }
+    
+    async deleteSprayChart() {
+        if (!this.currentReportId) return;
+        
+        if (!confirm('Are you sure you want to delete the spray chart image?')) {
+            return;
+        }
+        
+        try {
+            document.getElementById('deleteSprayChart').textContent = 'Deleting...';
+            document.getElementById('deleteSprayChart').disabled = true;
+            
+            const response = await fetch(`/api/reports/${this.currentReportId}/spray-chart`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Delete failed');
+            }
+            
+            this.showSuccess('Spray chart deleted successfully!');
+            this.clearSprayChart();
+            
+        } catch (error) {
+            this.showError('Failed to delete spray chart: ' + error.message);
+        } finally {
+            document.getElementById('deleteSprayChart').textContent = 'Delete Image';
+            document.getElementById('deleteSprayChart').disabled = false;
+        }
+    }
+    
+    displaySprayChart(imagePath) {
+        const preview = document.getElementById('sprayChartPreview');
+        preview.innerHTML = `
+            <div style="margin-top: 10px;">
+                <img src="${imagePath}" alt="Spray Chart" style="max-width: 300px; max-height: 200px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+        `;
+        document.getElementById('deleteSprayChart').style.display = 'inline-block';
+    }
+    
+    clearSprayChart() {
+        document.getElementById('sprayChartPreview').innerHTML = '';
+        document.getElementById('deleteSprayChart').style.display = 'none';
     }
 
     updateRecommendedFocus() {
@@ -445,6 +558,13 @@ class ScoutingApp {
             }
         }
         
+        // Display spray chart if exists
+        if (report.spray_chart_image) {
+            this.displaySprayChart(`/uploads/${report.spray_chart_image}`);
+        } else {
+            this.clearSprayChart();
+        }
+        
         // Format dates properly
         if (report.scout_date) {
             document.getElementById('scout_date').value = this.formatDateForInput(report.scout_date);
@@ -465,6 +585,11 @@ class ScoutingApp {
         checkboxes.forEach(checkbox => {
             checkbox.checked = false;
         });
+        
+        // Clear spray chart
+        this.clearSprayChart();
+        document.getElementById('sprayChartUpload').value = '';
+        document.getElementById('uploadSprayChart').style.display = 'none';
         
         // Set default date
         const today = new Date().toISOString().split('T')[0];
