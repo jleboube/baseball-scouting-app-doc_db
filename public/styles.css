@@ -728,6 +728,12 @@ textarea {
     justify-content: center;
     align-items: center;
     z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.modal.show {
+    opacity: 1;
 }
 
 .modal-content {
@@ -738,6 +744,12 @@ textarea {
     width: 90%;
     text-align: center;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    transform: scale(0.9);
+    transition: transform 0.2s ease;
+}
+
+.modal.show .modal-content {
+    transform: scale(1);
 }
 
 .modal-content h3 {

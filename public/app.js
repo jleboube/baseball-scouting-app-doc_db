@@ -55,6 +55,13 @@ class ScoutingApp {
         document.getElementById('editFromViewBtn').addEventListener('click', () => this.editCurrentReport());
         document.getElementById('cancelModalBtn').addEventListener('click', () => this.hideModal());
         
+        // Modal background click to close
+        document.getElementById('actionModal').addEventListener('click', (e) => {
+            if (e.target.id === 'actionModal') {
+                this.hideModal();
+            }
+        });
+        
         // Form actions
         document.getElementById('saveBtn').addEventListener('click', () => this.saveReport());
         document.getElementById('deleteBtn').addEventListener('click', () => this.deleteReport());
@@ -452,7 +459,7 @@ class ScoutingApp {
         }
         
         reportsContainer.innerHTML = reportsToShow.map(report => `
-            <div class="report-card" onclick="app.showActionModal(${report.id})">
+            <div class="report-card" data-report-id="${report.id}">
                 <h3>${report.player_name || 'Unnamed Player'}</h3>
                 <div class="report-meta">
                     ${this.formatDate(report.scout_date)} • ${report.team || 'No Team'}
@@ -465,6 +472,15 @@ class ScoutingApp {
                 </div>
             </div>
         `).join('');
+        
+        // Add click event listeners to report cards
+        const reportCards = reportsContainer.querySelectorAll('.report-card');
+        reportCards.forEach(card => {
+            card.addEventListener('click', () => {
+                const reportId = parseInt(card.dataset.reportId);
+                this.showActionModal(reportId);
+            });
+        });
     }
 
     filterReports(searchTerm) {
@@ -499,12 +515,19 @@ class ScoutingApp {
 
     showActionModal(reportId) {
         this.selectedReportId = reportId;
-        document.getElementById('actionModal').style.display = 'flex';
+        const modal = document.getElementById('actionModal');
+        modal.style.display = 'flex';
+        // Add fade-in animation
+        setTimeout(() => modal.classList.add('show'), 10);
     }
     
     hideModal() {
-        document.getElementById('actionModal').style.display = 'none';
-        this.selectedReportId = null;
+        const modal = document.getElementById('actionModal');
+        modal.classList.remove('show');
+        setTimeout(() => {
+            modal.style.display = 'none';
+            this.selectedReportId = null;
+        }, 200);
     }
     
     async viewReport() {
