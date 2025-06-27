@@ -600,48 +600,144 @@ class ScoutingApp {
     
     displayReport(report) {
         document.getElementById('viewTitle').textContent = `Scouting Report - ${report.player_name || 'Unnamed Player'}`;
-        
         const display = document.getElementById('reportDisplay');
+        const format = (val) => val ? val : '<span style="color:#bbb">N/A</span>';
+        const formatDate = (val) => val ? this.formatDate(val) : '<span style="color:#bbb">N/A</span>';
+        const focusAreas = report.recommended_focus ? report.recommended_focus.split(',').map(f => f.trim()).filter(f => f).join(', ') : '<span style="color:#bbb">N/A</span>';
         display.innerHTML = `
+            <div class="report-section">
+                <h3>Scout Information</h3>
+                <div class="report-grid">
+                    <div><strong>Scout/Coach:</strong> ${format(report.scout_name)}</div>
+                    <div><strong>Date:</strong> ${formatDate(report.scout_date)}</div>
+                    <div><strong>Event:</strong> ${format(report.event)}</div>
+                    <div><strong>League/Organization:</strong> ${format(report.league_organization)}</div>
+                </div>
+            </div>
             <div class="report-section">
                 <h3>Player Information</h3>
                 <div class="report-grid">
-                    <div><strong>Name:</strong> ${report.player_name || 'N/A'}</div>
-                    <div><strong>Position:</strong> ${report.primary_position || 'N/A'}</div>
-                    <div><strong>Team:</strong> ${report.team || 'N/A'}</div>
-                    <div><strong>Age:</strong> ${report.age || 'N/A'}</div>
-                    <div><strong>Height:</strong> ${report.height || 'N/A'}</div>
-                    <div><strong>Weight:</strong> ${report.weight || 'N/A'}</div>
-                    <div><strong>Bats:</strong> ${report.bats || 'N/A'}</div>
-                    <div><strong>Throws:</strong> ${report.throws || 'N/A'}</div>
+                    <div><strong>Name:</strong> ${format(report.player_name)}</div>
+                    <div><strong>Primary Position:</strong> ${format(report.primary_position)}</div>
+                    <div><strong>Jersey #:</strong> ${format(report.jersey_number)}</div>
+                    <div><strong>Date of Birth:</strong> ${formatDate(report.date_of_birth)}</div>
+                    <div><strong>Age:</strong> ${format(report.age)}</div>
+                    <div><strong>Height:</strong> ${format(report.height)}</div>
+                    <div><strong>Weight:</strong> ${format(report.weight)}</div>
+                    <div><strong>Bats:</strong> ${format(report.bats)}</div>
+                    <div><strong>Throws:</strong> ${format(report.throws)}</div>
+                    <div><strong>Team:</strong> ${format(report.team)}</div>
+                    <div><strong>Parent/Guardian:</strong> ${format(report.parent_guardian)}</div>
+                    <div><strong>Contact:</strong> ${format(report.contact)}</div>
                 </div>
             </div>
-            
-            ${report.spray_chart_image ? `
-                <div class="report-section">
-                    <h3>Spray Chart</h3>
-                    <img src="/uploads/${report.spray_chart_image}" alt="Spray Chart" style="max-width: 400px; border: 1px solid #ddd; border-radius: 4px;">
+            <div class="report-section">
+                <h3>Physical Development</h3>
+                <div class="report-grid">
+                    <div><strong>Build:</strong> ${format(report.build)}</div>
+                    <div><strong>Coordination:</strong> ${format(report.coordination)}</div>
+                    <div><strong>Athleticism:</strong> ${format(report.athleticism)}</div>
+                    <div><strong>Motor Skills:</strong> ${format(report.motor_skills)}</div>
+                    <div><strong>Growth Projection:</strong> ${format(report.growth_projection)}</div>
                 </div>
-            ` : ''}
-            
-            <div class="report-section">
-                <h3>Strengths</h3>
-                <p>${report.biggest_strengths || 'None specified'}</p>
             </div>
-            
             <div class="report-section">
-                <h3>Areas for Improvement</h3>
-                <p>${report.improvement_areas || 'None specified'}</p>
+                <h3>Hitting Fundamentals</h3>
+                <div class="report-grid">
+                    <div><strong>Stance & Setup:</strong> ${format(report.stance_setup)}</div>
+                    <div><strong>Swing Mechanics:</strong> ${format(report.swing_mechanics)}</div>
+                    <div><strong>Contact Ability:</strong> ${format(report.contact_ability)}</div>
+                    <div><strong>Power Potential:</strong> ${format(report.power_potential)}</div>
+                    <div><strong>Plate Discipline:</strong> ${format(report.plate_discipline)}</div>
+                    <div><strong>Bat Speed:</strong> ${format(report.bat_speed)}</div>
+                    <div><strong>Approach:</strong> ${format(report.approach)}</div>
+                    <div><strong>Bunting:</strong> ${format(report.bunting)}</div>
+                </div>
             </div>
-            
             <div class="report-section">
-                <h3>Recommended Focus</h3>
-                <p>${report.recommended_focus || 'None specified'}</p>
+                <h3>Running & Base Running</h3>
+                <div class="report-grid">
+                    <div><strong>Speed:</strong> ${format(report.speed)}</div>
+                    <div><strong>Base Running IQ:</strong> ${format(report.base_running_iq)}</div>
+                    <div><strong>Stealing Ability:</strong> ${format(report.stealing_ability)}</div>
+                    <div><strong>First Step:</strong> ${format(report.first_step)}</div>
+                    <div><strong>Turns:</strong> ${format(report.turns)}</div>
+                </div>
             </div>
-            
+            <div class="report-section">
+                <h3>Fielding Skills</h3>
+                <div class="report-grid">
+                    <div><strong>Readiness:</strong> ${format(report.fielding_readiness)}</div>
+                    <div><strong>Glove Work:</strong> ${format(report.glove_work)}</div>
+                    <div><strong>Footwork:</strong> ${format(report.footwork)}</div>
+                    <div><strong>Arm Strength:</strong> ${format(report.arm_strength)}</div>
+                    <div><strong>Arm Accuracy:</strong> ${format(report.arm_accuracy)}</div>
+                    <div><strong>Range:</strong> ${format(report.range_field)}</div>
+                    <div><strong>Game Awareness:</strong> ${format(report.game_awareness)}</div>
+                    <div><strong>Positions Played:</strong> ${format(report.positions_played)}</div>
+                </div>
+            </div>
+            <div class="report-section">
+                <h3>Pitching (If Applicable)</h3>
+                <div class="report-grid">
+                    <div><strong>Fastball MPH:</strong> ${format(report.fastball_mph)}</div>
+                    <div><strong>Control:</strong> ${format(report.control_pitching)}</div>
+                    <div><strong>Breaking Ball:</strong> ${format(report.breaking_ball)}</div>
+                    <div><strong>Changeup:</strong> ${format(report.changeup)}</div>
+                    <div><strong>Delivery:</strong> ${format(report.delivery)}</div>
+                    <div><strong>Mound Presence:</strong> ${format(report.mound_presence)}</div>
+                    <div><strong>Strikes:</strong> ${format(report.strikes)}</div>
+                </div>
+            </div>
+            <div class="report-section">
+                <h3>Baseball IQ & Intangibles</h3>
+                <div class="report-grid">
+                    <div><strong>Game Understanding:</strong> ${format(report.game_understanding)}</div>
+                    <div><strong>Coachability:</strong> ${format(report.coachability)}</div>
+                    <div><strong>Effort Level:</strong> ${format(report.effort_level)}</div>
+                    <div><strong>Competitiveness:</strong> ${format(report.competitiveness)}</div>
+                    <div><strong>Teamwork:</strong> ${format(report.teamwork)}</div>
+                    <div><strong>Focus/Attention:</strong> ${format(report.focus_attention)}</div>
+                    <div><strong>Leadership:</strong> ${format(report.leadership)}</div>
+                </div>
+            </div>
+            <div class="report-section">
+                <h3>Development Areas</h3>
+                <div class="report-grid">
+                    <div><strong>Biggest Strengths:</strong> <span>${format(report.biggest_strengths)}</span></div>
+                    <div><strong>Primary Areas for Improvement:</strong> <span>${format(report.improvement_areas)}</span></div>
+                    <div><strong>Recommended Focus Areas:</strong> <span>${focusAreas}</span></div>
+                </div>
+            </div>
+            <div class="report-section">
+                <h3>Projection & Recommendations</h3>
+                <div class="report-grid">
+                    <div><strong>Current Level:</strong> ${format(report.current_level)}</div>
+                    <div><strong>Development Potential:</strong> ${format(report.development_potential)}</div>
+                    <div><strong>Playing Time Recommendation:</strong> ${format(report.playing_time_recommendation)}</div>
+                    <div><strong>Recommended Next Steps:</strong> <span>${format(report.recommended_next_steps)}</span></div>
+                    <div><strong>Position Projection:</strong> <span>${format(report.position_projection)}</span></div>
+                    <div><strong>Additional Training Needed:</strong> <span>${format(report.additional_training)}</span></div>
+                </div>
+            </div>
+            <div class="report-section">
+                <h3>Coach/Parent Feedback</h3>
+                <div class="report-grid">
+                    <div><strong>What to Work on at Home/Practice:</strong> <span>${format(report.work_at_home)}</span></div>
+                    <div><strong>Positive Reinforcement Areas:</strong> <span>${format(report.positive_reinforcement)}</span></div>
+                </div>
+            </div>
+            <div class="report-section">
+                <h3>Spray Chart</h3>
+                ${report.spray_chart_image ? `<img src="/uploads/${report.spray_chart_image}" alt="Spray Chart" style="max-width: 400px; border: 1px solid #ddd; border-radius: 4px;">` : '<span style="color:#bbb">No spray chart uploaded</span>'}
+            </div>
             <div class="report-section">
                 <h3>Notes & Observations</h3>
-                <p>${report.notes_observations || 'None specified'}</p>
+                <div class="report-grid">
+                    <div><strong>Notes & Observations:</strong> <span>${format(report.notes_observations)}</span></div>
+                    <div><strong>Next Evaluation Date:</strong> ${formatDate(report.next_evaluation_date)}</div>
+                    <div><strong>Follow-up Items:</strong> ${format(report.followup_items)}</div>
+                </div>
             </div>
         `;
     }
