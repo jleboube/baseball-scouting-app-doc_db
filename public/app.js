@@ -272,6 +272,8 @@ class ScoutingApp {
         const uploadBtn = document.getElementById('uploadSprayChart');
         const deleteBtn = document.getElementById('deleteSprayChart');
         
+        if (!fileInput || !uploadBtn || !deleteBtn) return;
+        
         fileInput.addEventListener('change', () => {
             if (fileInput.files.length > 0) {
                 uploadBtn.style.display = 'inline-block';
@@ -317,11 +319,17 @@ class ScoutingApp {
             
             const result = await response.json();
             this.showSuccess('Spray chart uploaded successfully!');
-            this.displaySprayChart(result.imagePath);
+            // Re-render spray chart section
+            const sprayChartSection = document.querySelector('.form-section h3:contains("Spray Chart")').parentElement;
+            if (sprayChartSection) {
+                sprayChartSection.innerHTML = `<h3>Spray Chart</h3><div class="form-group">${this.renderSprayChartSection(result.imagePath.replace('/uploads/', ''), true)}</div>`;
+            }
             
             // Reset file input
             fileInput.value = '';
             document.getElementById('uploadSprayChart').style.display = 'none';
+            
+            this.bindSprayChartEvents();
             
         } catch (error) {
             this.showError('Failed to upload spray chart: ' + error.message);
@@ -352,7 +360,13 @@ class ScoutingApp {
             }
             
             this.showSuccess('Spray chart deleted successfully!');
-            this.clearSprayChart();
+            // Re-render spray chart section
+            const sprayChartSection = document.querySelector('.form-section h3:contains("Spray Chart")').parentElement;
+            if (sprayChartSection) {
+                sprayChartSection.innerHTML = `<h3>Spray Chart</h3><div class="form-group">${this.renderSprayChartSection(null, true)}</div>`;
+            }
+            
+            this.bindSprayChartEvents();
             
         } catch (error) {
             this.showError('Failed to delete spray chart: ' + error.message);
@@ -729,7 +743,7 @@ class ScoutingApp {
             </div>
             <div class="report-section">
                 <h3>Spray Chart</h3>
-                ${report.spray_chart_image ? `<img src="/uploads/${report.spray_chart_image}" alt="Spray Chart" style="max-width: 400px; border: 1px solid #ddd; border-radius: 4px;">` : '<span style="color:#bbb">No spray chart uploaded</span>'}
+                ${this.renderSprayChartSection(report.spray_chart_image, false)}
             </div>
             <div class="report-section">
                 <h3>Notes & Observations</h3>
@@ -770,12 +784,14 @@ class ScoutingApp {
             }
         }
         
-        // Display spray chart if exists
-        if (report.spray_chart_image) {
-            this.displaySprayChart(`/uploads/${report.spray_chart_image}`);
-        } else {
-            this.clearSprayChart();
+        // Render spray chart section
+        const sprayChartSection = document.querySelector('.form-section h3:contains("Spray Chart")').parentElement;
+        if (sprayChartSection) {
+            sprayChartSection.innerHTML = `<h3>Spray Chart</h3><div class="form-group">${this.renderSprayChartSection(report.spray_chart_image, true)}</div>`;
         }
+        
+        // Bind events for upload/delete
+        this.bindSprayChartEvents();
         
         // Format dates properly
         if (report.scout_date) {
@@ -1002,6 +1018,31 @@ class ScoutingApp {
         
         // Scroll to top to show message
         container.scrollTop = 0;
+    }
+
+    // --- Spray Chart Component Refactor ---
+    renderSprayChartSection(imagePath, editable = false) {
+        // imagePath: string or null
+        // editable: boolean, if true show upload/delete controls
+        let html = '';
+        if (imagePath) {
+            html += `<div style="margin-top: 10px;">
+                <img src="/uploads/${imagePath}" alt="Spray Chart" style="max-width: 400px; max-height: 300px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>`;
+        } else {
+            html += '<span style="color:#bbb">No spray chart uploaded</span>';
+        }
+        if (editable) {
+            html += `
+                <div style="margin-top: 10px;">
+                    <input type="file" id="sprayChartUpload" accept="image/*" style="margin-bottom: 10px;">
+                    <button type="button" id="uploadSprayChart" class="btn btn-secondary" style="display: none;">Upload Image</button>
+                    <button type="button" id="deleteSprayChart" class="btn btn-danger" style="display: ${imagePath ? 'inline-block' : 'none'};">Delete Image</button>
+                </div>
+                <div id="sprayChartPreview"></div>
+            `;
+        }
+        return html;
     }
 }
 
