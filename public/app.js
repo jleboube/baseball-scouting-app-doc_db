@@ -286,51 +286,51 @@ class ScoutingApp {
         deleteBtn.addEventListener('click', () => this.deleteSprayChart());
     }
 
+    // Utility to find the spray chart section
+    getSprayChartSection() {
+        const sprayChartSections = document.querySelectorAll('.form-section');
+        let sprayChartSection = null;
+        sprayChartSections.forEach(section => {
+            const h3 = section.querySelector('h3');
+            if (h3 && h3.textContent.trim() === 'Spray Chart') {
+                sprayChartSection = section;
+            }
+        });
+        return sprayChartSection;
+    }
+
     async uploadSprayChart() {
         if (!this.currentReportId) {
             this.showError('Please save the report first before uploading images');
             return;
         }
-        
         const fileInput = document.getElementById('sprayChartUpload');
         const file = fileInput.files[0];
-        
         if (!file) {
             this.showError('Please select an image file');
             return;
         }
-        
         const formData = new FormData();
         formData.append('sprayChart', file);
-        
         try {
             document.getElementById('uploadSprayChart').textContent = 'Uploading...';
             document.getElementById('uploadSprayChart').disabled = true;
-            
             const response = await fetch(`/api/reports/${this.currentReportId}/spray-chart`, {
                 method: 'POST',
                 credentials: 'include',
                 body: formData
             });
-            
             if (!response.ok) {
                 throw new Error('Upload failed');
             }
-            
             const result = await response.json();
             this.showSuccess('Spray chart uploaded successfully!');
             // Re-render spray chart section
-            const sprayChartSection = document.querySelector('.form-section h3:contains("Spray Chart")').parentElement;
+            const sprayChartSection = this.getSprayChartSection();
             if (sprayChartSection) {
                 sprayChartSection.innerHTML = `<h3>Spray Chart</h3><div class="form-group">${this.renderSprayChartSection(result.imagePath.replace('/uploads/', ''), true)}</div>`;
             }
-            
-            // Reset file input
-            fileInput.value = '';
-            document.getElementById('uploadSprayChart').style.display = 'none';
-            
             this.bindSprayChartEvents();
-            
         } catch (error) {
             this.showError('Failed to upload spray chart: ' + error.message);
         } finally {
@@ -341,33 +341,26 @@ class ScoutingApp {
     
     async deleteSprayChart() {
         if (!this.currentReportId) return;
-        
         if (!confirm('Are you sure you want to delete the spray chart image?')) {
             return;
         }
-        
         try {
             document.getElementById('deleteSprayChart').textContent = 'Deleting...';
             document.getElementById('deleteSprayChart').disabled = true;
-            
             const response = await fetch(`/api/reports/${this.currentReportId}/spray-chart`, {
                 method: 'DELETE',
                 credentials: 'include'
             });
-            
             if (!response.ok) {
                 throw new Error('Delete failed');
             }
-            
             this.showSuccess('Spray chart deleted successfully!');
             // Re-render spray chart section
-            const sprayChartSection = document.querySelector('.form-section h3:contains("Spray Chart")').parentElement;
+            const sprayChartSection = this.getSprayChartSection();
             if (sprayChartSection) {
                 sprayChartSection.innerHTML = `<h3>Spray Chart</h3><div class="form-group">${this.renderSprayChartSection(null, true)}</div>`;
             }
-            
             this.bindSprayChartEvents();
-            
         } catch (error) {
             this.showError('Failed to delete spray chart: ' + error.message);
         } finally {
@@ -785,7 +778,7 @@ class ScoutingApp {
         }
         
         // Render spray chart section
-        const sprayChartSection = document.querySelector('.form-section h3:contains("Spray Chart")').parentElement;
+        const sprayChartSection = this.getSprayChartSection();
         if (sprayChartSection) {
             sprayChartSection.innerHTML = `<h3>Spray Chart</h3><div class="form-group">${this.renderSprayChartSection(report.spray_chart_image, true)}</div>`;
         }
