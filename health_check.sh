@@ -64,7 +64,7 @@ echo ""
 echo "🔧 Service Health"
 echo "=================="
 check_status "app" "docker-compose -f docker-compose.prod.yml exec -T app echo 'OK'" "Application container"
-check_status "db" "docker-compose -f docker-compose.prod.yml exec -T db pg_isready -U scout_user" "Database container"
+check_status "db" "docker-compose -f docker-compose.prod.yml exec -T db mongosh --eval 'db.adminCommand(\"ping\")' --quiet" "Database container"
 check_status "nginx" "docker-compose -f docker-compose.prod.yml exec -T nginx nginx -t" "Nginx configuration"
 
 # Check network connectivity
@@ -125,13 +125,12 @@ fi
 echo ""
 echo "🗄️  Database Health"
 echo "===================="
-if DB_SIZE=$(docker-compose -f docker-compose.prod.yml exec -T db psql -U scout_user -d baseball_scouting -t -c "SELECT pg_size_pretty(pg_database_size('baseball_scouting'));" 2>/dev/null); then
+if docker-compose -f docker-compose.prod.yml exec -T db mongosh --username scout_user --password scout_pass --authenticationDatabase admin --eval 'db.adminCommand("ping")' --quiet >/dev/null 2>&1; then
     echo -e "✅ Database connection: ${GREEN}OK${NC}"
-    echo "📊 Database size: $(echo $DB_SIZE | xargs)"
     
-    # Check table counts
-    USER_COUNT=$(docker-compose -f docker-compose.prod.yml exec -T db psql -U scout_user -d baseball_scouting -t -c "SELECT COUNT(*) FROM users;" 2>/dev/null | xargs)
-    REPORT_COUNT=$(docker-compose -f docker-compose.prod.yml exec -T db psql -U scout_user -d baseball_scouting -t -c "SELECT COUNT(*) FROM scouting_reports;" 2>/dev/null | xargs)
+    # Check collection counts
+    USER_COUNT=$(docker-compose -f docker-compose.prod.yml exec -T db mongosh --username scout_user --password scout_pass --authenticationDatabase admin baseball_scouting --eval 'db.users.countDocuments()' --quiet 2>/dev/null | tail -1)
+    REPORT_COUNT=$(docker-compose -f docker-compose.prod.yml exec -T db mongosh --username scout_user --password scout_pass --authenticationDatabase admin baseball_scouting --eval 'db.scouting_reports.countDocuments()' --quiet 2>/dev/null | tail -1)
     
     echo "👥 Users: $USER_COUNT"
     echo "📝 Reports: $REPORT_COUNT"

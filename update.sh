@@ -8,7 +8,8 @@ echo "🔄 Updating Baseball Scouting App..."
 
 # Create backup before update
 echo "💾 Creating backup..."
-docker-compose -f docker-compose.prod.yml exec db pg_dump -U scout_user baseball_scouting > "backups/backup_before_update_$(date +%Y%m%d_%H%M%S).sql"
+mkdir -p backups
+docker-compose -f docker-compose.prod.yml exec -T db mongodump --username scout_user --password scout_pass --authenticationDatabase admin --db baseball_scouting --archive > "backups/backup_before_update_$(date +%Y%m%d_%H%M%S).archive"
 
 # Pull latest changes
 echo "📥 Pulling latest changes..."

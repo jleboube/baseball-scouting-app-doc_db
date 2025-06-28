@@ -644,7 +644,7 @@ app.delete('/api/reports/:id', requireAuth, async (req, res) => {
         const imagePath = report.spray_chart_image;
         
         // Delete the report
-        const result = await db.collection('scouting_reports').deleteOne({
+        await db.collection('scouting_reports').deleteOne({
             _id: new ObjectId(req.params.id),
             $or: [
                 { group_id: new ObjectId(req.session.groupId) },
