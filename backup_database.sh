@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# Simple Database Backup Script
+# Simple MongoDB Backup Script
 
 BACKUP_DIR="./backups"
 DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="baseball_scouting_backup_${DATE}.sql"
+BACKUP_FILE="baseball_scouting_backup_${DATE}"
 
 # Create backup directory if it doesn't exist
 mkdir -p "$BACKUP_DIR"
 
-echo "💾 Creating database backup..."
+echo "💾 Creating MongoDB backup..."
 
 # Check if containers are running
 if ! docker-compose -f docker-compose.prod.yml ps | grep -q "Up"; then
@@ -18,20 +18,20 @@ if ! docker-compose -f docker-compose.prod.yml ps | grep -q "Up"; then
     sleep 10
 fi
 
-# Create database backup
-if docker-compose -f docker-compose.prod.yml exec -T db pg_dump -U scout_user -h localhost baseball_scouting > "$BACKUP_DIR/$BACKUP_FILE"; then
+# Create MongoDB backup using mongodump
+if docker-compose -f docker-compose.prod.yml exec -T db mongodump --username scout_user --password scout_pass --authenticationDatabase admin --db baseball_scouting --archive > "$BACKUP_DIR/$BACKUP_FILE.archive"; then
     # Compress the backup
-    gzip "$BACKUP_DIR/$BACKUP_FILE"
-    echo "✅ Backup created: $BACKUP_DIR/${BACKUP_FILE}.gz"
+    gzip "$BACKUP_DIR/$BACKUP_FILE.archive"
+    echo "✅ Backup created: $BACKUP_DIR/${BACKUP_FILE}.archive.gz"
     
     # Keep only last 30 backups
-    find "$BACKUP_DIR" -name "baseball_scouting_backup_*.sql.gz" -mtime +30 -delete 2>/dev/null || true
+    find "$BACKUP_DIR" -name "baseball_scouting_backup_*.archive.gz" -mtime +30 -delete 2>/dev/null || true
     
     echo "📊 Recent backups:"
-    ls -lah "$BACKUP_DIR"/*.sql.gz 2>/dev/null | tail -5 || echo "No previous backups found"
+    ls -lah "$BACKUP_DIR"/*.archive.gz 2>/dev/null | tail -5 || echo "No previous backups found"
 else
     echo "❌ Backup failed!"
     echo "🔍 Checking database status..."
-    docker-compose -f docker-compose.prod.yml exec db pg_isready -U scout_user -h localhost
+    docker-compose -f docker-compose.prod.yml exec db mongosh --eval "db.adminCommand('ping')"
     exit 1
 fi

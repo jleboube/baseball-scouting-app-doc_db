@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Simple Database Restore Script
-# Usage: ./restore_database.sh backup_file.sql.gz
+# Simple MongoDB Restore Script
+# Usage: ./restore_database.sh backup_file.archive.gz
 
 if [ $# -eq 0 ]; then
-    echo "❌ Usage: $0 <backup_file.sql.gz>"
+    echo "❌ Usage: $0 <backup_file.archive.gz>"
     echo "📁 Available backups:"
-    ls -la ./backups/*.sql.gz 2>/dev/null || echo "No backups found in ./backups/"
+    ls -la ./backups/*.archive.gz 2>/dev/null || echo "No backups found in ./backups/"
     exit 1
 fi
 
@@ -29,17 +29,16 @@ fi
 echo "🛑 Stopping application..."
 docker-compose -f docker-compose.prod.yml stop app
 
-echo "🗄️  Restoring database..."
+echo "🗄️  Restoring MongoDB database..."
 
-# Drop and recreate database
-docker-compose -f docker-compose.prod.yml exec db psql -U scout_user -h localhost -c "DROP DATABASE IF EXISTS baseball_scouting;"
-docker-compose -f docker-compose.prod.yml exec db psql -U scout_user -h localhost -c "CREATE DATABASE baseball_scouting;"
+# Drop existing database
+docker-compose -f docker-compose.prod.yml exec db mongosh --username scout_user --password scout_pass --authenticationDatabase admin --eval "db.getSiblingDB('baseball_scouting').dropDatabase()"
 
 # Restore from backup
 if [[ "$BACKUP_FILE" == *.gz ]]; then
-    gunzip -c "$BACKUP_FILE" | docker-compose -f docker-compose.prod.yml exec -T db psql -U scout_user -h localhost -d baseball_scouting
+    gunzip -c "$BACKUP_FILE" | docker-compose -f docker-compose.prod.yml exec -T db mongorestore --username scout_user --password scout_pass --authenticationDatabase admin --archive
 else
-    cat "$BACKUP_FILE" | docker-compose -f docker-compose.prod.yml exec -T db psql -U scout_user -h localhost -d baseball_scouting
+    cat "$BACKUP_FILE" | docker-compose -f docker-compose.prod.yml exec -T db mongorestore --username scout_user --password scout_pass --authenticationDatabase admin --archive
 fi
 
 if [ $? -eq 0 ]; then

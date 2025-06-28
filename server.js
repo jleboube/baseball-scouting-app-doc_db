@@ -1,10 +1,10 @@
 const express = require('express');
-const { Pool } = require('pg');
+const { MongoClient, ObjectId } = require('mongodb');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const session = require('express-session');
-const pgSession = require('connect-pg-simple')(session);
+const MongoStore = require('connect-mongo');
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
@@ -45,9 +45,9 @@ app.set('trust proxy', 1);
 
 // Session configuration
 app.use(session({
-    store: new pgSession({
-        pool: pool,
-        tableName: 'session'
+    store: MongoStore.create({
+        mongoUrl: mongoUrl,
+        touchAfter: 24 * 3600 // lazy session update
     }),
     secret: process.env.SESSION_SECRET || 'baseball-scouting-secret-key',
     resave: false,
@@ -134,42 +134,39 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(400).json({ error: 'Email and password are required' });
         }
         
-        const userQuery = `
-            SELECT u.id, u.email, u.password_hash, u.first_name, u.last_name, 
-                   u.group_id, g.name as group_name
-            FROM users u 
-            LEFT JOIN groups g ON u.group_id = g.id 
-            WHERE u.email = $1 AND u.is_active = true
-        `;
+        const user = await db.collection('users').findOne({
+            email: email.toLowerCase(),
+            is_active: true
+        });
         
-        const result = await pool.query(userQuery, [email.toLowerCase()]);
-        
-        if (result.rows.length === 0) {
+        if (!user) {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
         
-        const user = result.rows[0];
         const isValidPassword = await bcrypt.compare(password, user.password_hash);
         
         if (!isValidPassword) {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
         
+        // Get group info
+        const group = await db.collection('groups').findOne({ _id: user.group_id });
+        
         // Set session
-        req.session.userId = user.id;
+        req.session.userId = user._id;
         req.session.userEmail = user.email;
         req.session.groupId = user.group_id;
-        req.session.groupName = user.group_name;
+        req.session.groupName = group?.name;
         
         res.json({
             message: 'Login successful',
             user: {
-                id: user.id,
+                id: user._id,
                 email: user.email,
                 firstName: user.first_name,
                 lastName: user.last_name,
                 groupId: user.group_id,
-                groupName: user.group_name
+                groupName: group?.name
             }
         });
         
@@ -193,23 +190,17 @@ app.post('/api/auth/register', async (req, res) => {
         }
         
         // Check if user already exists
-        const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
-        if (existingUser.rows.length > 0) {
+        const existingUser = await db.collection('users').findOne({ email: email.toLowerCase() });
+        if (existingUser) {
             return res.status(400).json({ error: 'Email already registered' });
         }
         
         // Validate team and registration code
-        const groupQuery = `
-            SELECT id, name, registration_code 
-            FROM groups WHERE id = $1
-        `;
-        const groupResult = await pool.query(groupQuery, [groupId]);
+        const group = await db.collection('groups').findOne({ _id: new ObjectId(groupId) });
         
-        if (groupResult.rows.length === 0) {
+        if (!group) {
             return res.status(400).json({ error: 'Invalid team selected' });
         }
-        
-        const group = groupResult.rows[0];
         
         // Check registration code
         if (group.registration_code !== registrationCode) {
@@ -223,26 +214,27 @@ app.post('/api/auth/register', async (req, res) => {
         const passwordHash = await bcrypt.hash(password, saltRounds);
         
         // Insert user
-        const insertQuery = `
-            INSERT INTO users (email, password_hash, first_name, last_name, group_id)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING id, email, first_name, last_name, group_id
-        `;
+        const newUser = {
+            email: email.toLowerCase(),
+            password_hash: passwordHash,
+            first_name: firstName,
+            last_name: lastName,
+            group_id: group._id,
+            is_active: true,
+            created_at: new Date(),
+            updated_at: new Date()
+        };
         
-        const result = await pool.query(insertQuery, [
-            email.toLowerCase(), passwordHash, firstName, lastName, groupId
-        ]);
-        
-        const user = result.rows[0];
+        const result = await db.collection('users').insertOne(newUser);
         
         res.json({
             message: 'Registration successful! You can now login.',
             user: {
-                id: user.id,
-                email: user.email,
-                firstName: user.first_name,
-                lastName: user.last_name,
-                groupId: user.group_id,
+                id: result.insertedId,
+                email: newUser.email,
+                firstName: newUser.first_name,
+                lastName: newUser.last_name,
+                groupId: newUser.group_id,
                 groupName: group.name
             }
         });
@@ -270,29 +262,26 @@ app.get('/api/auth/me', async (req, res) => {
     }
     
     try {
-        const userQuery = `
-            SELECT u.id, u.email, u.first_name, u.last_name, u.group_id, g.name as group_name
-            FROM users u 
-            LEFT JOIN groups g ON u.group_id = g.id 
-            WHERE u.id = $1 AND u.is_active = true
-        `;
+        const user = await db.collection('users').findOne({
+            _id: new ObjectId(req.session.userId),
+            is_active: true
+        });
         
-        const result = await pool.query(userQuery, [req.session.userId]);
-        
-        if (result.rows.length === 0) {
+        if (!user) {
             req.session.destroy();
             return res.status(401).json({ error: 'User not found' });
         }
         
-        const user = result.rows[0];
+        const group = await db.collection('groups').findOne({ _id: user.group_id });
+        
         res.json({
             user: {
-                id: user.id,
+                id: user._id,
                 email: user.email,
                 firstName: user.first_name,
                 lastName: user.last_name,
                 groupId: user.group_id,
-                groupName: user.group_name
+                groupName: group?.name
             }
         });
         
@@ -305,8 +294,19 @@ app.get('/api/auth/me', async (req, res) => {
 // Get available groups
 app.get('/api/groups', async (req, res) => {
     try {
-        const result = await pool.query('SELECT id, name, description FROM groups ORDER BY name');
-        res.json(result.rows);
+        const groups = await db.collection('groups')
+            .find({}, { projection: { _id: 1, name: 1, description: 1 } })
+            .sort({ name: 1 })
+            .toArray();
+        
+        // Convert _id to id for frontend compatibility
+        const formattedGroups = groups.map(group => ({
+            id: group._id,
+            name: group.name,
+            description: group.description
+        }));
+        
+        res.json(formattedGroups);
     } catch (err) {
         console.error('Groups fetch error:', err);
         res.status(500).json({ error: 'Failed to fetch groups' });
@@ -318,17 +318,47 @@ app.get('/api/groups', async (req, res) => {
 // Get all scouting reports (filtered by user's group)
 app.get('/api/reports', requireAuth, async (req, res) => {
     try {
-        const query = `
-            SELECT sr.id, sr.player_name, sr.primary_position, sr.team, sr.scout_date, sr.created_at,
-                   u.first_name, u.last_name
-            FROM scouting_reports sr
-            LEFT JOIN users u ON sr.user_id = u.id
-            WHERE sr.group_id = $1 OR sr.group_id IS NULL
-            ORDER BY sr.created_at DESC
-        `;
+        const reports = await db.collection('scouting_reports')
+            .aggregate([
+                {
+                    $match: {
+                        $or: [
+                            { group_id: new ObjectId(req.session.groupId) },
+                            { group_id: null }
+                        ]
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'users',
+                        localField: 'user_id',
+                        foreignField: '_id',
+                        as: 'user'
+                    }
+                },
+                {
+                    $unwind: {
+                        path: '$user',
+                        preserveNullAndEmptyArrays: true
+                    }
+                },
+                {
+                    $project: {
+                        id: '$_id',
+                        player_name: 1,
+                        primary_position: 1,
+                        team: 1,
+                        scout_date: 1,
+                        created_at: 1,
+                        first_name: '$user.first_name',
+                        last_name: '$user.last_name'
+                    }
+                },
+                { $sort: { created_at: -1 } }
+            ])
+            .toArray();
         
-        const result = await pool.query(query, [req.session.groupId]);
-        res.json(result.rows);
+        res.json(reports);
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Failed to fetch reports' });
@@ -338,16 +368,23 @@ app.get('/api/reports', requireAuth, async (req, res) => {
 // Get single scouting report (must be in same group)
 app.get('/api/reports/:id', requireAuth, async (req, res) => {
     try {
-        const query = `
-            SELECT * FROM scouting_reports 
-            WHERE id = $1 AND (group_id = $2 OR group_id IS NULL)
-        `;
+        const report = await db.collection('scouting_reports').findOne({
+            _id: new ObjectId(req.params.id),
+            $or: [
+                { group_id: new ObjectId(req.session.groupId) },
+                { group_id: null }
+            ]
+        });
         
-        const result = await pool.query(query, [req.params.id, req.session.groupId]);
-        if (result.rows.length === 0) {
+        if (!report) {
             return res.status(404).json({ error: 'Report not found' });
         }
-        res.json(result.rows[0]);
+        
+        // Convert _id to id for frontend compatibility
+        const formattedReport = { ...report, id: report._id };
+        delete formattedReport._id;
+        
+        res.json(formattedReport);
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Failed to fetch report' });
@@ -361,30 +398,22 @@ app.post('/api/reports', requireAuth, async (req, res) => {
     try {
         console.log('Creating report with fields:', DB_FIELDS.length);
         
-        // Add user_id and group_id to the fields and data
-        const fieldsWithUser = ['user_id', 'group_id', ...DB_FIELDS];
-        const placeholders = fieldsWithUser.map((_, index) => `$${index + 1}`).join(', ');
+        // Build report document
+        const reportDoc = {
+            user_id: new ObjectId(req.session.userId),
+            group_id: new ObjectId(req.session.groupId),
+            created_at: new Date(),
+            updated_at: new Date()
+        };
         
-        const query = `
-            INSERT INTO scouting_reports (${fieldsWithUser.join(', ')}) 
-            VALUES (${placeholders}) 
-            RETURNING id
-        `;
+        // Add all DB fields
+        DB_FIELDS.forEach(field => {
+            const value = data[field];
+            reportDoc[field] = (value !== undefined && value !== '') ? value : null;
+        });
         
-        // Extract values, prepending user_id and group_id
-        const values = [
-            req.session.userId,
-            req.session.groupId,
-            ...DB_FIELDS.map(field => {
-                const value = data[field];
-                return (value !== undefined && value !== '') ? value : null;
-            })
-        ];
-        
-        console.log('Query has', fieldsWithUser.length, 'columns and', values.length, 'values');
-        
-        const result = await pool.query(query, values);
-        res.json({ id: result.rows[0].id, message: 'Report created successfully' });
+        const result = await db.collection('scouting_reports').insertOne(reportDoc);
+        res.json({ id: result.insertedId, message: 'Report created successfully' });
         
     } catch (err) {
         console.error('Database error:', err.message);
@@ -402,41 +431,32 @@ app.put('/api/reports/:id', requireAuth, async (req, res) => {
     const reportId = req.params.id;
     
     try {
-        // First check if report exists and user has access
-        const checkQuery = `
-            SELECT id FROM scouting_reports 
-            WHERE id = $1 AND (group_id = $2 OR group_id IS NULL)
-        `;
-        
-        const checkResult = await pool.query(checkQuery, [reportId, req.session.groupId]);
-        if (checkResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Report not found or access denied' });
-        }
-        
         console.log('Updating report with fields:', DB_FIELDS.length);
         
-        const setClause = DB_FIELDS.map((field, index) => `${field} = $${index + 1}`).join(', ');
+        // Build update document
+        const updateDoc = {
+            updated_at: new Date()
+        };
         
-        const query = `
-            UPDATE scouting_reports SET
-                ${setClause},
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = $${DB_FIELDS.length + 1}
-        `;
-        
-        const values = DB_FIELDS.map(field => {
+        // Add all DB fields
+        DB_FIELDS.forEach(field => {
             const value = data[field];
-            return (value !== undefined && value !== '') ? value : null;
+            updateDoc[field] = (value !== undefined && value !== '') ? value : null;
         });
         
-        values.push(reportId);
+        const result = await db.collection('scouting_reports').updateOne(
+            {
+                _id: new ObjectId(reportId),
+                $or: [
+                    { group_id: new ObjectId(req.session.groupId) },
+                    { group_id: null }
+                ]
+            },
+            { $set: updateDoc }
+        );
         
-        console.log('Update query has', DB_FIELDS.length, 'columns and', values.length, 'values');
-        
-        const result = await pool.query(query, values);
-        
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: 'Report not found' });
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Report not found or access denied' });
         }
         
         res.json({ message: 'Report updated successfully' });
@@ -462,20 +482,22 @@ app.post('/api/reports/:id/spray-chart', requireAuth, upload.single('sprayChart'
         const imagePath = req.file.filename;
         
         // Check if report exists and user has access
-        const checkQuery = `
-            SELECT spray_chart_image FROM scouting_reports 
-            WHERE id = $1 AND (group_id = $2 OR group_id IS NULL)
-        `;
+        const report = await db.collection('scouting_reports').findOne({
+            _id: new ObjectId(reportId),
+            $or: [
+                { group_id: new ObjectId(req.session.groupId) },
+                { group_id: null }
+            ]
+        });
         
-        const checkResult = await pool.query(checkQuery, [reportId, req.session.groupId]);
-        if (checkResult.rows.length === 0) {
+        if (!report) {
             // Delete uploaded file if report not found
             fs.unlinkSync(req.file.path);
             return res.status(404).json({ error: 'Report not found or access denied' });
         }
         
         // Delete old image if exists
-        const oldImage = checkResult.rows[0].spray_chart_image;
+        const oldImage = report.spray_chart_image;
         if (oldImage) {
             const oldImagePath = path.join(uploadsDir, oldImage);
             if (fs.existsSync(oldImagePath)) {
@@ -484,13 +506,15 @@ app.post('/api/reports/:id/spray-chart', requireAuth, upload.single('sprayChart'
         }
         
         // Update database with new image path
-        const updateQuery = `
-            UPDATE scouting_reports 
-            SET spray_chart_image = $1, updated_at = CURRENT_TIMESTAMP 
-            WHERE id = $2
-        `;
-        
-        await pool.query(updateQuery, [imagePath, reportId]);
+        await db.collection('scouting_reports').updateOne(
+            { _id: new ObjectId(reportId) },
+            { 
+                $set: { 
+                    spray_chart_image: imagePath,
+                    updated_at: new Date()
+                }
+            }
+        );
         
         res.json({ 
             message: 'Spray chart uploaded successfully',
@@ -512,17 +536,19 @@ app.delete('/api/reports/:id/spray-chart', requireAuth, async (req, res) => {
         const reportId = req.params.id;
         
         // Get current image path
-        const query = `
-            SELECT spray_chart_image FROM scouting_reports 
-            WHERE id = $1 AND (group_id = $2 OR group_id IS NULL)
-        `;
+        const report = await db.collection('scouting_reports').findOne({
+            _id: new ObjectId(reportId),
+            $or: [
+                { group_id: new ObjectId(req.session.groupId) },
+                { group_id: null }
+            ]
+        });
         
-        const result = await pool.query(query, [reportId, req.session.groupId]);
-        if (result.rows.length === 0) {
+        if (!report) {
             return res.status(404).json({ error: 'Report not found or access denied' });
         }
         
-        const imagePath = result.rows[0].spray_chart_image;
+        const imagePath = report.spray_chart_image;
         if (!imagePath) {
             return res.status(404).json({ error: 'No spray chart image found' });
         }
@@ -534,13 +560,15 @@ app.delete('/api/reports/:id/spray-chart', requireAuth, async (req, res) => {
         }
         
         // Update database
-        const updateQuery = `
-            UPDATE scouting_reports 
-            SET spray_chart_image = NULL, updated_at = CURRENT_TIMESTAMP 
-            WHERE id = $1
-        `;
-        
-        await pool.query(updateQuery, [reportId]);
+        await db.collection('scouting_reports').updateOne(
+            { _id: new ObjectId(reportId) },
+            { 
+                $set: { 
+                    spray_chart_image: null,
+                    updated_at: new Date()
+                }
+            }
+        );
         
         res.json({ message: 'Spray chart deleted successfully' });
         
@@ -554,26 +582,28 @@ app.delete('/api/reports/:id/spray-chart', requireAuth, async (req, res) => {
 app.delete('/api/reports/:id', requireAuth, async (req, res) => {
     try {
         // Get spray chart image path before deleting
-        const imageQuery = `
-            SELECT spray_chart_image FROM scouting_reports 
-            WHERE id = $1 AND (group_id = $2 OR group_id IS NULL)
-        `;
+        const report = await db.collection('scouting_reports').findOne({
+            _id: new ObjectId(req.params.id),
+            $or: [
+                { group_id: new ObjectId(req.session.groupId) },
+                { group_id: null }
+            ]
+        });
         
-        const imageResult = await pool.query(imageQuery, [req.params.id, req.session.groupId]);
-        
-        if (imageResult.rows.length === 0) {
+        if (!report) {
             return res.status(404).json({ error: 'Report not found or access denied' });
         }
         
-        const imagePath = imageResult.rows[0].spray_chart_image;
+        const imagePath = report.spray_chart_image;
         
         // Delete the report
-        const deleteQuery = `
-            DELETE FROM scouting_reports 
-            WHERE id = $1 AND (group_id = $2 OR group_id IS NULL)
-        `;
-        
-        const result = await pool.query(deleteQuery, [req.params.id, req.session.groupId]);
+        const result = await db.collection('scouting_reports').deleteOne({
+            _id: new ObjectId(req.params.id),
+            $or: [
+                { group_id: new ObjectId(req.session.groupId) },
+                { group_id: null }
+            ]
+        });
         
         // Delete associated image file if exists
         if (imagePath) {
