@@ -12,24 +12,71 @@ const fs = require('fs');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Database connection - using individual parameters to avoid connection string issues
-const pool = new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT) || 5432,
-    database: process.env.DB_NAME || 'baseball_scouting',
-    user: process.env.DB_USER || 'scout_user',
-    password: process.env.DB_PASSWORD || 'scout_pass',
-});
+// MongoDB connection
+const mongoUrl = `mongodb://${process.env.DB_USER || 'scout_user'}:${process.env.DB_PASSWORD || 'scout_pass'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 27017}/${process.env.DB_NAME || 'baseball_scouting'}`;
+let db;
 
-// Test database connection on startup
-pool.connect((err, client, release) => {
-    if (err) {
-        console.error('Error connecting to database:', err);
-    } else {
+// Connect to MongoDB
+MongoClient.connect(mongoUrl)
+    .then(client => {
         console.log('Database connected successfully');
-        release();
+        db = client.db(process.env.DB_NAME || 'baseball_scouting');
+        initializeDatabase();
+    })
+    .catch(err => {
+        console.error('Error connecting to database:', err);
+        process.exit(1);
+    });
+
+// Initialize database with sample data
+async function initializeDatabase() {
+    try {
+        // Create indexes
+        await db.collection('users').createIndex({ email: 1 }, { unique: true });
+        await db.collection('groups').createIndex({ name: 1 }, { unique: true });
+        await db.collection('groups').createIndex({ registration_code: 1 }, { unique: true });
+        await db.collection('scouting_reports').createIndex({ player_name: 1 });
+        await db.collection('scouting_reports').createIndex({ created_at: -1 });
+        
+        // Insert sample groups if they don't exist
+        const groups = [
+            { name: 'Demo Team', description: 'Demo team for testing', registration_code: 'DEMO2025' },
+            { name: 'Rampage 12U Baseball', description: 'MTown Rampage 12U youth baseball team', registration_code: 'RAMPAGE2025' },
+            { name: 'Venom 11U Baseball', description: 'MTown Venom 11U youth baseball team', registration_code: 'VENOM2025' }
+        ];
+        
+        for (const group of groups) {
+            await db.collection('groups').updateOne(
+                { name: group.name },
+                { $setOnInsert: { ...group, created_at: new Date() } },
+                { upsert: true }
+            );
+        }
+        
+        // Insert sample admin user if doesn't exist
+        const demoGroup = await db.collection('groups').findOne({ name: 'Demo Team' });
+        if (demoGroup) {
+            await db.collection('users').updateOne(
+                { email: 'admin@demo.com' },
+                { 
+                    $setOnInsert: {
+                        email: 'admin@demo.com',
+                        password_hash: '$2b$10$rOzJsm7UzGkVxwjN7j4xZe5fv8v6w.Ac0xCEe5HdF3/1FHi3q9KJO',
+                        first_name: 'Admin',
+                        last_name: 'User',
+                        group_id: demoGroup._id,
+                        is_active: true,
+                        created_at: new Date(),
+                        updated_at: new Date()
+                    }
+                },
+                { upsert: true }
+            );
+        }
+    } catch (err) {
+        console.error('Database initialization error:', err);
     }
-});
+}
 
 // Middleware
 app.use(cors({
