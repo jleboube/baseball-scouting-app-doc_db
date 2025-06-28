@@ -33,11 +33,11 @@ mkdir -p backups
 
 # Stop any existing containers
 echo "🛑 Stopping existing containers..."
-docker-compose -f docker-compose.prod.yml down 2>/dev/null || true
+docker compose -f docker-compose.prod.yml down 2>/dev/null || true
 
 # Build and start the application
 echo "🔨 Building and starting services..."
-docker-compose -f docker-compose.prod.yml up --build -d
+docker compose -f docker-compose.prod.yml up --build -d
 
 # Wait for services to start
 echo "⏳ Waiting for services to start..."
@@ -45,12 +45,12 @@ sleep 15
 
 # Check if services are running
 echo "🔍 Checking service status..."
-if docker-compose -f docker-compose.prod.yml ps | grep -q "Up"; then
+if docker compose -f docker-compose.prod.yml ps | grep -q "Up"; then
     echo "✅ Services are running!"
-    docker-compose -f docker-compose.prod.yml ps
+    docker compose -f docker-compose.prod.yml ps
 else
     echo "❌ Some services failed to start. Check logs:"
-    docker-compose -f docker-compose.prod.yml logs
+    docker compose -f docker-compose.prod.yml logs
     exit 1
 fi
 
