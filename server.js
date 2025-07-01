@@ -1,5 +1,17 @@
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
+
+// Helper function to safely create ObjectId
+const safeObjectId = (id) => {
+    if (!id || typeof id !== 'string' || id.length !== 24 || !/^[0-9a-fA-F]+$/.test(id)) {
+        return null;
+    }
+    try {
+        return new ObjectId(id);
+    } catch (error) {
+        return null;
+    }
+};
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
@@ -243,7 +255,12 @@ app.post('/api/auth/register', async (req, res) => {
         }
         
         // Validate team and registration code
-        const group = await db.collection('groups').findOne({ _id: new ObjectId(groupId) });
+        const groupObjectId = safeObjectId(groupId);
+        if (!groupObjectId) {
+            return res.status(400).json({ error: 'Invalid group ID' });
+        }
+        
+        const group = await db.collection('groups').findOne({ _id: groupObjectId });
         
         if (!group) {
             return res.status(400).json({ error: 'Invalid team selected' });
@@ -309,8 +326,14 @@ app.get('/api/auth/me', async (req, res) => {
     }
     
     try {
+        const userId = safeObjectId(req.session.userId);
+        if (!userId) {
+            req.session.destroy();
+            return res.status(401).json({ error: 'Invalid session' });
+        }
+        
         const user = await db.collection('users').findOne({
-            _id: new ObjectId(req.session.userId),
+            _id: userId,
             is_active: true
         });
         
@@ -365,12 +388,17 @@ app.get('/api/groups', async (req, res) => {
 // Get all scouting reports (filtered by user's group)
 app.get('/api/reports', requireAuth, async (req, res) => {
     try {
+        const groupId = safeObjectId(req.session.groupId);
+        if (!groupId) {
+            return res.status(400).json({ error: 'Invalid group ID' });
+        }
+        
         const reports = await db.collection('scouting_reports')
             .aggregate([
                 {
                     $match: {
                         $or: [
-                            { group_id: new ObjectId(req.session.groupId) },
+                            { group_id: groupId },
                             { group_id: null }
                         ]
                     }
@@ -415,10 +443,21 @@ app.get('/api/reports', requireAuth, async (req, res) => {
 // Get single scouting report (must be in same group)
 app.get('/api/reports/:id', requireAuth, async (req, res) => {
     try {
+        const reportId = safeObjectId(req.params.id);
+        const groupId = safeObjectId(req.session.groupId);
+        
+        if (!reportId) {
+            return res.status(400).json({ error: 'Invalid report ID' });
+        }
+        
+        if (!groupId) {
+            return res.status(400).json({ error: 'Invalid group ID' });
+        }
+        
         const report = await db.collection('scouting_reports').findOne({
-            _id: new ObjectId(req.params.id),
+            _id: reportId,
             $or: [
-                { group_id: new ObjectId(req.session.groupId) },
+                { group_id: groupId },
                 { group_id: null }
             ]
         });
@@ -443,12 +482,19 @@ app.post('/api/reports', requireAuth, async (req, res) => {
     const data = req.body;
     
     try {
+        const userId = safeObjectId(req.session.userId);
+        const groupId = safeObjectId(req.session.groupId);
+        
+        if (!userId || !groupId) {
+            return res.status(400).json({ error: 'Invalid user or group ID' });
+        }
+        
         console.log('Creating report with fields:', DB_FIELDS.length);
         
         // Build report document
         const reportDoc = {
-            user_id: new ObjectId(req.session.userId),
-            group_id: new ObjectId(req.session.groupId),
+            user_id: userId,
+            group_id: groupId,
             created_at: new Date(),
             updated_at: new Date()
         };
@@ -475,9 +521,19 @@ app.post('/api/reports', requireAuth, async (req, res) => {
 // Update scouting report (must be in same group)
 app.put('/api/reports/:id', requireAuth, async (req, res) => {
     const data = req.body;
-    const reportId = req.params.id;
     
     try {
+        const reportId = safeObjectId(req.params.id);
+        const groupId = safeObjectId(req.session.groupId);
+        
+        if (!reportId) {
+            return res.status(400).json({ error: 'Invalid report ID' });
+        }
+        
+        if (!groupId) {
+            return res.status(400).json({ error: 'Invalid group ID' });
+        }
+        
         console.log('Updating report with fields:', DB_FIELDS.length);
         
         // Build update document
@@ -493,9 +549,9 @@ app.put('/api/reports/:id', requireAuth, async (req, res) => {
         
         const result = await db.collection('scouting_reports').updateOne(
             {
-                _id: new ObjectId(reportId),
+                _id: reportId,
                 $or: [
-                    { group_id: new ObjectId(req.session.groupId) },
+                    { group_id: groupId },
                     { group_id: null }
                 ]
             },
@@ -525,14 +581,20 @@ app.post('/api/reports/:id/spray-chart', requireAuth, upload.single('sprayChart'
             return res.status(400).json({ error: 'No file uploaded' });
         }
         
-        const reportId = req.params.id;
+        const reportId = safeObjectId(req.params.id);
+        const groupId = safeObjectId(req.session.groupId);
         const imagePath = req.file.filename;
+        
+        if (!reportId || !groupId) {
+            fs.unlinkSync(req.file.path);
+            return res.status(400).json({ error: 'Invalid report or group ID' });
+        }
         
         // Check if report exists and user has access
         const report = await db.collection('scouting_reports').findOne({
-            _id: new ObjectId(reportId),
+            _id: reportId,
             $or: [
-                { group_id: new ObjectId(req.session.groupId) },
+                { group_id: groupId },
                 { group_id: null }
             ]
         });
@@ -554,7 +616,7 @@ app.post('/api/reports/:id/spray-chart', requireAuth, upload.single('sprayChart'
         
         // Update database with new image path
         await db.collection('scouting_reports').updateOne(
-            { _id: new ObjectId(reportId) },
+            { _id: reportId },
             { 
                 $set: { 
                     spray_chart_image: imagePath,
@@ -580,13 +642,18 @@ app.post('/api/reports/:id/spray-chart', requireAuth, upload.single('sprayChart'
 // Delete spray chart image
 app.delete('/api/reports/:id/spray-chart', requireAuth, async (req, res) => {
     try {
-        const reportId = req.params.id;
+        const reportId = safeObjectId(req.params.id);
+        const groupId = safeObjectId(req.session.groupId);
+        
+        if (!reportId || !groupId) {
+            return res.status(400).json({ error: 'Invalid report or group ID' });
+        }
         
         // Get current image path
         const report = await db.collection('scouting_reports').findOne({
-            _id: new ObjectId(reportId),
+            _id: reportId,
             $or: [
-                { group_id: new ObjectId(req.session.groupId) },
+                { group_id: groupId },
                 { group_id: null }
             ]
         });
@@ -608,7 +675,7 @@ app.delete('/api/reports/:id/spray-chart', requireAuth, async (req, res) => {
         
         // Update database
         await db.collection('scouting_reports').updateOne(
-            { _id: new ObjectId(reportId) },
+            { _id: reportId },
             { 
                 $set: { 
                     spray_chart_image: null,
@@ -628,11 +695,18 @@ app.delete('/api/reports/:id/spray-chart', requireAuth, async (req, res) => {
 // Delete scouting report (must be in same group)
 app.delete('/api/reports/:id', requireAuth, async (req, res) => {
     try {
+        const reportId = safeObjectId(req.params.id);
+        const groupId = safeObjectId(req.session.groupId);
+        
+        if (!reportId || !groupId) {
+            return res.status(400).json({ error: 'Invalid report or group ID' });
+        }
+        
         // Get spray chart image path before deleting
         const report = await db.collection('scouting_reports').findOne({
-            _id: new ObjectId(req.params.id),
+            _id: reportId,
             $or: [
-                { group_id: new ObjectId(req.session.groupId) },
+                { group_id: groupId },
                 { group_id: null }
             ]
         });
@@ -645,9 +719,9 @@ app.delete('/api/reports/:id', requireAuth, async (req, res) => {
         
         // Delete the report
         await db.collection('scouting_reports').deleteOne({
-            _id: new ObjectId(req.params.id),
+            _id: reportId,
             $or: [
-                { group_id: new ObjectId(req.session.groupId) },
+                { group_id: groupId },
                 { group_id: null }
             ]
         });

@@ -484,7 +484,7 @@ class ScoutingApp {
         const reportCards = reportsContainer.querySelectorAll('.report-card');
         reportCards.forEach(card => {
             card.addEventListener('click', () => {
-                const reportId = parseInt(card.dataset.reportId);
+                const reportId = card.dataset.reportId;
                 this.showActionModal(reportId);
             });
         });
