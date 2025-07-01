@@ -23,7 +23,7 @@ cp .env.production .env
 nano .env
 
 # 3. Deploy with Docker Compose
-docker-compose up -d
+docker compose up -d
 
 # 4. Access the app
 # Visit: http://localhost:3000
@@ -81,10 +81,10 @@ A    your-domain.com    → YOUR_SERVER_IP
 
 ```bash
 # View status
-docker-compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml ps
 
 # View logs  
-docker-compose -f docker-compose.prod.yml logs app
+docker compose -f docker-compose.prod.yml logs app
 
 # Create backup
 ./backup_database.sh
@@ -99,7 +99,7 @@ docker-compose -f docker-compose.prod.yml logs app
 ./health_check.sh
 
 # Stop services
-docker-compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml down
 ```
 
 ## Application Features
