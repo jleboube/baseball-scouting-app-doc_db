@@ -175,6 +175,12 @@ const DB_FIELDS = [
 
 // Authentication middleware
 const requireAuth = (req, res, next) => {
+    console.log('Auth check - Session:', {
+        hasSession: !!req.session,
+        userId: req.session?.userId,
+        groupId: req.session?.groupId
+    });
+    
     if (req.session && req.session.userId) {
         return next();
     } else {
@@ -211,20 +217,20 @@ app.post('/api/auth/login', async (req, res) => {
         // Get group info
         const group = await db.collection('groups').findOne({ _id: user.group_id });
         
-        // Set session
-        req.session.userId = user._id;
+        // Set session (convert ObjectIds to strings)
+        req.session.userId = user._id.toString();
         req.session.userEmail = user.email;
-        req.session.groupId = user.group_id;
+        req.session.groupId = user.group_id.toString();
         req.session.groupName = group?.name;
         
         res.json({
             message: 'Login successful',
             user: {
-                id: user._id,
+                id: user._id.toString(),
                 email: user.email,
                 firstName: user.first_name,
                 lastName: user.last_name,
-                groupId: user.group_id,
+                groupId: user.group_id.toString(),
                 groupName: group?.name
             }
         });
@@ -294,11 +300,11 @@ app.post('/api/auth/register', async (req, res) => {
         res.json({
             message: 'Registration successful! You can now login.',
             user: {
-                id: result.insertedId,
+                id: result.insertedId.toString(),
                 email: newUser.email,
                 firstName: newUser.first_name,
                 lastName: newUser.last_name,
-                groupId: newUser.group_id,
+                groupId: newUser.group_id.toString(),
                 groupName: group.name
             }
         });
@@ -316,6 +322,17 @@ app.post('/api/auth/logout', (req, res) => {
             return res.status(500).json({ error: 'Logout failed' });
         }
         res.json({ message: 'Logout successful' });
+    });
+});
+
+// Debug endpoint to check session
+app.get('/api/debug/session', (req, res) => {
+    res.json({
+        hasSession: !!req.session,
+        sessionId: req.sessionID,
+        userId: req.session?.userId,
+        groupId: req.session?.groupId,
+        sessionKeys: req.session ? Object.keys(req.session) : []
     });
 });
 
@@ -346,11 +363,11 @@ app.get('/api/auth/me', async (req, res) => {
         
         res.json({
             user: {
-                id: user._id,
+                id: user._id.toString(),
                 email: user.email,
                 firstName: user.first_name,
                 lastName: user.last_name,
-                groupId: user.group_id,
+                groupId: user.group_id.toString(),
                 groupName: group?.name
             }
         });
@@ -418,8 +435,13 @@ app.get('/api/reports', requireAuth, async (req, res) => {
                     }
                 },
                 {
+                    $addFields: {
+                        id: { $toString: '$_id' }
+                    }
+                },
+                {
                     $project: {
-                        id: '$_id',
+                        id: 1,
                         player_name: 1,
                         primary_position: 1,
                         team: 1,
@@ -467,12 +489,14 @@ app.get('/api/reports/:id', requireAuth, async (req, res) => {
         }
         
         // Convert _id to id for frontend compatibility
-        const formattedReport = { ...report, id: report._id };
+        const formattedReport = { ...report, id: report._id.toString() };
         delete formattedReport._id;
         
         res.json(formattedReport);
     } catch (err) {
-        console.error(err);
+        console.error('Error fetching report:', err);
+        console.error('Report ID received:', req.params.id);
+        console.error('Group ID from session:', req.session.groupId);
         res.status(500).json({ error: 'Failed to fetch report' });
     }
 });
@@ -506,7 +530,7 @@ app.post('/api/reports', requireAuth, async (req, res) => {
         });
         
         const result = await db.collection('scouting_reports').insertOne(reportDoc);
-        res.json({ id: result.insertedId, message: 'Report created successfully' });
+        res.json({ id: result.insertedId.toString(), message: 'Report created successfully' });
         
     } catch (err) {
         console.error('Database error:', err.message);
