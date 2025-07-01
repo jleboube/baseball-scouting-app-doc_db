@@ -62,16 +62,16 @@ Visit `https://your-domain.com` and login with `admin@demo.com` / `admin123`
 
 ```bash
 # View status
-docker-compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml ps
 
 # View logs
-docker-compose -f docker-compose.prod.yml logs app
+docker compose -f docker-compose.prod.yml logs app
 
 # Restart services
-docker-compose -f docker-compose.prod.yml restart
+docker compose -f docker-compose.prod.yml restart
 
 # Stop services
-docker-compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml down
 
 # Update and redeploy
 ./deploy-compose.sh
@@ -117,10 +117,10 @@ Each team has a unique registration code for new user registration:
 ### Managing Teams
 ```bash
 # View current teams
-docker-compose -f docker-compose.prod.yml exec db mongosh baseball_scouting --eval "db.groups.find({}, {name: 1, registration_code: 1}).pretty()"
+docker compose -f docker-compose.prod.yml exec db mongosh baseball_scouting --eval "db.groups.find({}, {name: 1, registration_code: 1}).pretty()"
 
 # Add new team
-docker-compose -f docker-compose.prod.yml exec db mongosh baseball_scouting --eval "db.groups.insertOne({name: 'Team Name', description: 'Description', registration_code: 'TEAMCODE2025', created_at: new Date()})"
+docker compose -f docker-compose.prod.yml exec db mongosh baseball_scouting --eval "db.groups.insertOne({name: 'Team Name', description: 'Description', registration_code: 'TEAMCODE2025', created_at: new Date()})"
 ```
 
 ## 🔄 Updates
@@ -136,10 +136,10 @@ This will update the application and run any necessary database migrations.
 ### Site not loading?
 ```bash
 # Check services
-docker-compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml ps
 
 # Check logs
-docker-compose -f docker-compose.prod.yml logs
+docker compose -f docker-compose.prod.yml logs
 ```
 
 ### SSL issues?
@@ -150,10 +150,10 @@ docker-compose -f docker-compose.prod.yml logs
 ### Database issues?
 ```bash
 # Check database
-docker-compose -f docker-compose.prod.yml logs db
+docker compose -f docker-compose.prod.yml logs db
 
 # Restart database
-docker-compose -f docker-compose.prod.yml restart db
+docker compose -f docker-compose.prod.yml restart db
 ```
 
 ## 📁 File Structure
