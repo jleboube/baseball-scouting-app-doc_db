@@ -13,7 +13,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // MongoDB connection
-const mongoUrl = `mongodb://${process.env.DB_USER || 'scout_user'}:${process.env.DB_PASSWORD || 'scout_pass'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 27017}/${process.env.DB_NAME || 'baseball_scouting'}`;
+const mongoUrl = `mongodb://${process.env.DB_USER || 'scout_user'}:${process.env.DB_PASSWORD || 'scout_pass'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 27017}/${process.env.DB_NAME || 'baseball_scouting'}?authSource=admin`;
 let db;
 
 // Connect to MongoDB
