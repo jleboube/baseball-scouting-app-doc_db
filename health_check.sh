@@ -64,16 +64,27 @@ echo ""
 echo "🔧 Service Health"
 echo "=================="
 check_status "app" "docker-compose -f docker-compose.prod.yml exec -T app echo 'OK'" "Application container"
-check_status "db" "docker-compose -f docker-compose.prod.yml exec -T db mongosh --eval 'db.adminCommand(\"ping\")' --quiet" "Database container"
+# Get database password from environment or use default
+if [ -f ".env" ]; then
+    source .env
+    DB_PASSWORD=${DB_PASSWORD:-scout_pass}
+else
+    DB_PASSWORD="scout_pass"
+fi
+
+check_status "db" "docker-compose -f docker-compose.prod.yml exec -T db mongosh --username scout_user --password $DB_PASSWORD --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")' --quiet" "Database container"
 check_status "nginx" "docker-compose -f docker-compose.prod.yml exec -T nginx nginx -t" "Nginx configuration"
 
 # Check network connectivity
 echo ""
 echo "🌐 Network & SSL"
 echo "=================="
-check_status "http" "curl -f -s http://scouting-report.com" "HTTP redirect"
-check_status "https" "curl -f -s https://scouting-report.com" "HTTPS website"
-check_status "ssl" "echo | openssl s_client -connect scouting-report.com:443 -servername scouting-report.com 2>/dev/null | openssl x509 -noout -dates" "SSL certificate"
+# Use domain from already sourced .env file or default
+DOMAIN=${DOMAIN:-localhost}
+
+check_status "http" "curl -f -s http://$DOMAIN" "HTTP redirect"
+check_status "https" "curl -f -s https://$DOMAIN" "HTTPS website"
+check_status "ssl" "echo | openssl s_client -connect $DOMAIN:443 -servername $DOMAIN 2>/dev/null | openssl x509 -noout -dates" "SSL certificate"
 
 # Check ports
 echo ""
@@ -125,12 +136,12 @@ fi
 echo ""
 echo "🗄️  Database Health"
 echo "===================="
-if docker-compose -f docker-compose.prod.yml exec -T db mongosh --username scout_user --password scout_pass --authenticationDatabase admin --eval 'db.adminCommand("ping")' --quiet >/dev/null 2>&1; then
+if docker-compose -f docker-compose.prod.yml exec -T db mongosh --username scout_user --password "$DB_PASSWORD" --authenticationDatabase admin --eval 'db.adminCommand("ping")' --quiet >/dev/null 2>&1; then
     echo -e "✅ Database connection: ${GREEN}OK${NC}"
     
     # Check collection counts
-    USER_COUNT=$(docker-compose -f docker-compose.prod.yml exec -T db mongosh --username scout_user --password scout_pass --authenticationDatabase admin baseball_scouting --eval 'db.users.countDocuments()' --quiet 2>/dev/null | tail -1)
-    REPORT_COUNT=$(docker-compose -f docker-compose.prod.yml exec -T db mongosh --username scout_user --password scout_pass --authenticationDatabase admin baseball_scouting --eval 'db.scouting_reports.countDocuments()' --quiet 2>/dev/null | tail -1)
+    USER_COUNT=$(docker-compose -f docker-compose.prod.yml exec -T db mongosh --username scout_user --password "$DB_PASSWORD" --authenticationDatabase admin baseball_scouting --eval 'db.users.countDocuments()' --quiet 2>/dev/null | tail -1)
+    REPORT_COUNT=$(docker-compose -f docker-compose.prod.yml exec -T db mongosh --username scout_user --password "$DB_PASSWORD" --authenticationDatabase admin baseball_scouting --eval 'db.scouting_reports.countDocuments()' --quiet 2>/dev/null | tail -1)
     
     echo "👥 Users: $USER_COUNT"
     echo "📝 Reports: $REPORT_COUNT"
@@ -143,9 +154,9 @@ fi
 echo ""
 echo "💾 Backup Status"
 echo "================="
-BACKUP_DIR="$HOME/baseball-scouting-backups"
+BACKUP_DIR="./backups"
 if [ -d "$BACKUP_DIR" ]; then
-    LATEST_BACKUP=$(ls -t $BACKUP_DIR/*.sql.gz 2>/dev/null | head -1)
+    LATEST_BACKUP=$(ls -t $BACKUP_DIR/*.archive.gz 2>/dev/null | head -1)
     if [ -n "$LATEST_BACKUP" ]; then
         BACKUP_AGE=$(find "$LATEST_BACKUP" -mtime -1)
         if [ -n "$BACKUP_AGE" ]; then
@@ -186,7 +197,7 @@ fi
 echo ""
 echo "🔐 SSL Certificate"
 echo "=================="
-if CERT_INFO=$(echo | openssl s_client -connect scouting-report.com:443 -servername scouting-report.com 2>/dev/null | openssl x509 -noout -dates 2>/dev/null); then
+if CERT_INFO=$(echo | openssl s_client -connect $DOMAIN:443 -servername $DOMAIN 2>/dev/null | openssl x509 -noout -dates 2>/dev/null); then
     EXPIRY_DATE=$(echo "$CERT_INFO" | grep "notAfter" | cut -d= -f2)
     EXPIRY_TIMESTAMP=$(date -d "$EXPIRY_DATE" +%s)
     CURRENT_TIMESTAMP=$(date +%s)

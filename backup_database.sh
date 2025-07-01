@@ -18,8 +18,16 @@ if ! docker-compose -f docker-compose.prod.yml ps | grep -q "Up"; then
     sleep 10
 fi
 
+# Get database password from environment or use default
+if [ -f ".env" ]; then
+    source .env
+    DB_PASSWORD=${DB_PASSWORD:-scout_pass}
+else
+    DB_PASSWORD="scout_pass"
+fi
+
 # Create MongoDB backup using mongodump
-if docker-compose -f docker-compose.prod.yml exec -T db mongodump --username scout_user --password scout_pass --authenticationDatabase admin --db baseball_scouting --archive > "$BACKUP_DIR/$BACKUP_FILE.archive"; then
+if docker-compose -f docker-compose.prod.yml exec -T db mongodump --username scout_user --password "$DB_PASSWORD" --authenticationDatabase admin --db baseball_scouting --archive > "$BACKUP_DIR/$BACKUP_FILE.archive"; then
     # Compress the backup
     gzip "$BACKUP_DIR/$BACKUP_FILE.archive"
     echo "✅ Backup created: $BACKUP_DIR/${BACKUP_FILE}.archive.gz"
@@ -32,6 +40,6 @@ if docker-compose -f docker-compose.prod.yml exec -T db mongodump --username sco
 else
     echo "❌ Backup failed!"
     echo "🔍 Checking database status..."
-    docker-compose -f docker-compose.prod.yml exec db mongosh --eval "db.adminCommand('ping')"
+    docker-compose -f docker-compose.prod.yml exec db mongosh --username scout_user --password "$DB_PASSWORD" --authenticationDatabase admin --eval "db.adminCommand('ping')"
     exit 1
 fi

@@ -13,9 +13,9 @@ docker compose -f docker-compose.prod.yml up -d
 echo "⏳ Waiting for database..."
 sleep 10
 
-# Run database migration for spray chart
-echo "📊 Running database migration..."
-docker compose -f docker-compose.prod.yml exec -T db psql -U scout_user -d baseball_scouting -c "ALTER TABLE scouting_reports ADD COLUMN IF NOT EXISTS spray_chart_image VARCHAR(255);"
+# Check database connectivity
+echo "📊 Checking database connectivity..."
+docker compose -f docker-compose.prod.yml exec -T db mongosh --eval "db.adminCommand('ping')" --quiet
 
 echo "✅ Deployment complete!"
 echo "📋 Access points:"

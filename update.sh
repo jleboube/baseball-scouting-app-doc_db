@@ -9,7 +9,16 @@ echo "🔄 Updating Baseball Scouting App..."
 # Create backup before update
 echo "💾 Creating backup..."
 mkdir -p backups
-docker-compose -f docker-compose.prod.yml exec -T db mongodump --username scout_user --password scout_pass --authenticationDatabase admin --db baseball_scouting --archive > "backups/backup_before_update_$(date +%Y%m%d_%H%M%S).archive"
+
+# Get database password from environment or use default
+if [ -f ".env" ]; then
+    source .env
+    DB_PASSWORD=${DB_PASSWORD:-scout_pass}
+else
+    DB_PASSWORD="scout_pass"
+fi
+
+docker-compose -f docker-compose.prod.yml exec -T db mongodump --username scout_user --password "$DB_PASSWORD" --authenticationDatabase admin --db baseball_scouting --archive > "backups/backup_before_update_$(date +%Y%m%d_%H%M%S).archive"
 
 # Pull latest changes
 echo "📥 Pulling latest changes..."
@@ -24,11 +33,11 @@ echo "⏳ Waiting for services to restart..."
 sleep 15
 
 # Quick health check
-echo "🔍 Checking if site is responding..."
-if curl -f -s https://scouting-report.com >/dev/null 2>&1; then
-    echo "✅ Site is responding correctly"
+echo "🔍 Checking if services are running..."
+if docker-compose -f docker-compose.prod.yml ps | grep -q "Up"; then
+    echo "✅ Services are running correctly"
 else
-    echo "⚠️  Site check failed - check logs if needed"
+    echo "⚠️  Some services may have issues - check logs if needed"
 fi
 
 # Show status

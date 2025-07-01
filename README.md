@@ -55,7 +55,7 @@ Visit `https://your-domain.com` and login with `admin@demo.com` / `admin123`
 
 - **Nginx Proxy Manager**: SSL certificates & reverse proxy (web UI)
 - **Node.js App**: Baseball scouting application  
-- **PostgreSQL**: Database with team-based access control
+- **MongoDB**: Database with team-based access control
 - **Docker**: Containerized deployment
 
 ## 🔧 Management
@@ -110,17 +110,17 @@ docker-compose -f docker-compose.prod.yml down
 
 ### Team Registration Codes
 Each team has a unique registration code for new user registration:
-- **Demo Team**: `DEMO2024`
-- **Lions Baseball**: `LIONS2024`  
-- **Eagles Baseball**: `EAGLES2024`
+- **Demo Team**: `DEMO2025`
+- **Rampage 12U Baseball**: `RAMPAGE2025`  
+- **Venom 11U Baseball**: `VENOM2025`
 
 ### Managing Teams
 ```bash
 # View current teams
-docker-compose -f docker-compose.prod.yml exec db psql -U scout_user -d baseball_scouting -c "SELECT id, name, registration_code FROM groups;"
+docker-compose -f docker-compose.prod.yml exec db mongosh baseball_scouting --eval "db.groups.find({}, {name: 1, registration_code: 1}).pretty()"
 
 # Add new team
-docker-compose -f docker-compose.prod.yml exec db psql -U scout_user -d baseball_scouting -c "INSERT INTO groups (name, description, registration_code) VALUES ('Team Name', 'Description', 'TEAMCODE2024');"
+docker-compose -f docker-compose.prod.yml exec db mongosh baseball_scouting --eval "db.groups.insertOne({name: 'Team Name', description: 'Description', registration_code: 'TEAMCODE2025', created_at: new Date()})"
 ```
 
 ## 🔄 Updates
@@ -165,7 +165,7 @@ baseball-scouting-app/
 ├── .env                       # Your configuration
 ├── deploy-compose.sh          # Docker Compose deployment
 ├── server.js                  # Application server
-├── init.sql                   # Database schema
+├── init-mongo.js              # Database initialization
 ├── uploads/                   # Spray chart images
 └── public/                    # Web interface
 ```

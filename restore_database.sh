@@ -26,19 +26,27 @@ if [ "$confirm" != "yes" ]; then
     exit 0
 fi
 
+# Get database password from environment or use default
+if [ -f ".env" ]; then
+    source .env
+    DB_PASSWORD=${DB_PASSWORD:-scout_pass}
+else
+    DB_PASSWORD="scout_pass"
+fi
+
 echo "🛑 Stopping application..."
 docker-compose -f docker-compose.prod.yml stop app
 
 echo "🗄️  Restoring MongoDB database..."
 
 # Drop existing database
-docker-compose -f docker-compose.prod.yml exec db mongosh --username scout_user --password scout_pass --authenticationDatabase admin --eval "db.getSiblingDB('baseball_scouting').dropDatabase()"
+docker-compose -f docker-compose.prod.yml exec db mongosh --username scout_user --password "$DB_PASSWORD" --authenticationDatabase admin --eval "db.getSiblingDB('baseball_scouting').dropDatabase()"
 
 # Restore from backup
 if [[ "$BACKUP_FILE" == *.gz ]]; then
-    gunzip -c "$BACKUP_FILE" | docker-compose -f docker-compose.prod.yml exec -T db mongorestore --username scout_user --password scout_pass --authenticationDatabase admin --archive
+    gunzip -c "$BACKUP_FILE" | docker-compose -f docker-compose.prod.yml exec -T db mongorestore --username scout_user --password "$DB_PASSWORD" --authenticationDatabase admin --archive
 else
-    cat "$BACKUP_FILE" | docker-compose -f docker-compose.prod.yml exec -T db mongorestore --username scout_user --password scout_pass --authenticationDatabase admin --archive
+    cat "$BACKUP_FILE" | docker-compose -f docker-compose.prod.yml exec -T db mongorestore --username scout_user --password "$DB_PASSWORD" --authenticationDatabase admin --archive
 fi
 
 if [ $? -eq 0 ]; then
@@ -52,4 +60,4 @@ echo "🚀 Starting application..."
 docker-compose -f docker-compose.prod.yml start app
 
 echo "✅ Restore completed!"
-echo "🌐 Test your site: https://scouting-report.com"
+echo "🌐 Test your site: Check your configured domain"
